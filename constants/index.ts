@@ -1,5 +1,5 @@
 export const SITE_CONFIG = {
-    name: 'Teelite',
+    name: 'Teelite Club',
     description: 'Premium quality t-shirts designed for style and comfort.',
     social: {
         instagram: 'https://instagram.com/teeclub',

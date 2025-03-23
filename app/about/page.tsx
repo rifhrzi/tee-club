@@ -9,7 +9,7 @@ export default function About() {
         <h1 className="text-4xl font-bold text-gray-900 mb-8">About Us</h1>
         <div className="prose lg:prose-lg">
           <p className="text-gray-600">
-            Welcome to Tee Club, where style meets comfort. We are passionate about creating premium quality t-shirts that not only look great but feel amazing to wear.
+            Welcome to Teelite Club, where style meets comfort. We are passionate about creating premium quality t-shirts that not only look great but feel amazing to wear.
           </p>
           <p className="text-gray-600 mt-4">
             Our commitment to quality and sustainability drives everything we do, from selecting the finest materials to ensuring ethical manufacturing practices.
