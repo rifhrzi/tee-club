@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SITE_CONFIG } from "../constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tee Club - Premium Quality T-Shirts",
-  description: "Discover our collection of premium quality t-shirts designed for style and comfort.",
+  title: SITE_CONFIG.name,
+  description: SITE_CONFIG.description,
 };
 
 export default function RootLayout({
