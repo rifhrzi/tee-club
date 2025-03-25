@@ -2,9 +2,9 @@ export const SITE_CONFIG = {
     name: 'Teelite Club',
     description: 'Premium quality t-shirts designed for style and comfort.',
     social: {
-        instagram: 'https://instagram.com/teeclub',
-        twitter: 'https://twitter.com/teeclub',
-        facebook: 'https://facebook.com/teeclub'
+        instagram: 'https://instagram.com/teeliteclub',
+        twitter: 'https://twitter.com/teeliteclub',
+        facebook: 'https://facebook.com/teeliteclub'
     }
 };
 
