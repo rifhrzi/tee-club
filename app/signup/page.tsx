@@ -25,9 +25,12 @@ export default function SignUpPage() {
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Buat Akun Baru</h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Atau{" "}
-            <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-              masuk ke akun yang sudah ada
+            Sudah punya akun?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-indigo-600 transition-colors duration-200 hover:text-indigo-500"
+            >
+              Masuk di sini
             </Link>
           </p>
         </div>
