@@ -14,23 +14,30 @@ export interface OrderItem {
   image: string;
 }
 
+export type PaymentMethod = "transfer" | "cod";
+export type PaymentStatus = "pending" | "paid" | "failed";
+
 export interface Payment {
-  method: string;
-  status: string;
+  method: PaymentMethod;
+  status: PaymentStatus;
   proof: string;
 }
 
+export type ShippingMethod = "jne" | "jnt" | "sicepat" | "ninja" | "cod";
+
 export interface Shipping {
-  method: string;
+  method: ShippingMethod;
   trackingNumber: string;
   estimatedDelivery: Date;
   cost: number;
 }
 
+export type OrderStatus = "pending" | "processing" | "dikirim" | "delivered" | "completed";
+
 export interface Order {
   id: string;
   orderDate: Date;
-  status: string;
+  status: OrderStatus;
   customer: Customer;
   items: OrderItem[];
   shipping: Shipping;

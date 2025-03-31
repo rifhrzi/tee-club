@@ -23,13 +23,7 @@ export function CustomerInfo({ customer }: CustomerInfoProps) {
         </div>
         <div>
           <h3 className="text-sm font-medium text-gray-500">Alamat Pengiriman</h3>
-          <p className="mt-1 text-sm text-gray-900">
-            {customer.address.street}
-            <br />
-            {customer.address.city}, {customer.address.state} {customer.address.postalCode}
-            <br />
-            {customer.address.country}
-          </p>
+          <p className="mt-1 text-sm text-gray-900">{customer.address}</p>
         </div>
       </div>
     </div>
