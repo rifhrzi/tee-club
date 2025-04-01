@@ -22,6 +22,11 @@ declare module 'midtrans-client' {
       city?: string;
       postal_code?: string;
     };
+    callbacks?: {
+      finish?: string;
+      error?: string;
+      pending?: string;
+    };
   }
 
   interface TransactionResponse {

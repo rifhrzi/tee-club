@@ -5,8 +5,8 @@ import { Product, CartItem } from "./types";
 interface CartState {
   cart: CartItem[];
   addToCart: (product: Product) => void;
-  removeFromCart: (productId: number) => void;
-  updateQuantity: (productId: number, quantity: number) => void;
+  removeFromCart: (productId: string | number) => void;
+  updateQuantity: (productId: string | number, quantity: number) => void;
   clearCart: () => void;
 }
 
@@ -28,13 +28,13 @@ const useCartStore = create<CartState>((set) => ({
       }
       return { cart: [...state.cart, { product, quantity: 1 }] };
     }),
-  removeFromCart: (productId: number) =>
+  removeFromCart: (productId: string | number) =>
     set((state) => ({
       cart: state.cart.filter(
         (item: CartItem) => item.product.id !== productId
       ),
     })),
-  updateQuantity: (productId: number, quantity: number) =>
+  updateQuantity: (productId: string | number, quantity: number) =>
     set((state) => ({
       cart: state.cart.map((item: CartItem) =>
         item.product.id === productId ? { ...item, quantity } : item

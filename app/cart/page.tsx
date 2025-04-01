@@ -4,8 +4,11 @@
 import React from "react";
 import useCartStore from "@/store/cartStore";
 import Link from "next/link";
-import Layout from "@/components/Layout";
 import { formatPrice } from "@/constants";
+import dynamicImport from 'next/dynamic';
+
+// Import Layout with dynamic import to avoid hydration issues
+const Layout = dynamicImport(() => import('@/components/Layout'), { ssr: false });
 
 export const dynamic = "force-dynamic"; // Mark the page as dynamic
 
@@ -49,10 +52,7 @@ export default function CartPage() {
                     </h3>
                     <div className="mt-1 text-sm text-gray-500 space-y-1">
                       {item.product.variant && (
-                        <>
-                          <p>Ukuran: {item.product.variant.size}</p>
-                          <p>Warna: {item.product.variant.color}</p>
-                        </>
+                        <p>Variant: {item.product.variant}</p>
                       )}
                     </div>
                     <p className="mt-1 text-gray-600">

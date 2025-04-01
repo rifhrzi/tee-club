@@ -3,46 +3,75 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import useCartStore from '@/store/cartStore'
+import { useAuth } from '@/hooks/useAuth'
+import dynamic from 'next/dynamic'
+
+// Import Layout with dynamic import to avoid hydration issues
+const Layout = dynamic(() => import('@/components/Layout'), { ssr: false })
 
 export default function Checkout() {
   const router = useRouter()
   const cart = useCartStore(state => state.cart)
+  const { accessToken, user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Add a check at the beginning of the component
+  // Check if user is authenticated
   useEffect(() => {
-    const token = localStorage.getItem('authToken')
-    if (!token) {
+    if (!accessToken || !user) {
       router.push('/login?redirect=/checkout')
     }
-  }, [router])
+  }, [accessToken, user, router])
 
   const handleCheckout = async (formData: FormData) => {
     try {
       setLoading(true)
       setError('')
 
-      // Get the auth token from localStorage or your auth state management
-      const token = localStorage.getItem('authToken')
-      
-      if (!token) {
+      // Check if user is authenticated
+      if (!accessToken || !user) {
         router.push('/login?redirect=/checkout')
         return
       }
+
+      // Transform cart items to match the expected API format
+      const transformedItems = cart.map(item => {
+        // Create the base item with required fields
+        const transformedItem: any = {
+          productId: String(item.product.id), // Ensure productId is a string
+          quantity: item.quantity
+        };
+
+        // Only add variantId if it exists
+        if (item.product.variantId) {
+          transformedItem.variantId = item.product.variantId;
+        }
+
+        return transformedItem;
+      });
+
+      // Format phone number to match Indonesian format
+      const phoneInput = formData.get('phone') as string;
+      const formattedPhone = phoneInput.startsWith('0')
+        ? phoneInput
+        : phoneInput.startsWith('+62')
+          ? phoneInput.replace('+62', '0')
+          : phoneInput.startsWith('62')
+            ? phoneInput.replace('62', '0')
+            : `0${phoneInput}`;
 
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          items: cart,
+          items: transformedItems,
           shippingDetails: {
             name: formData.get('name'),
             email: formData.get('email'),
-            phone: formData.get('phone'),
+            phone: formattedPhone,
             address: formData.get('address'),
             city: formData.get('city'),
             postalCode: formData.get('postalCode'),
@@ -59,6 +88,19 @@ export default function Checkout() {
           router.push('/login?redirect=/checkout')
           return
         }
+
+        // Handle validation errors
+        if (response.status === 400 && data.details) {
+          // Format validation errors for display
+          const validationErrors = data.details.map((error: any) => {
+            // Format the path for better readability
+            const path = error.path.join('.');
+            return `${path}: ${error.message}`;
+          }).join('\n');
+
+          throw new Error(`Validation errors:\n${validationErrors}`);
+        }
+
         throw new Error(data.error || 'Checkout failed')
       }
 
@@ -73,14 +115,15 @@ export default function Checkout() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Checkout</h1>
-      
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
+    <Layout>
+      <div className="max-w-2xl mx-auto p-6">
+        <h1 className="text-2xl font-bold mb-6">Checkout</h1>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
 
       <form action={handleCheckout}>
         <div className="space-y-4">
@@ -113,8 +156,12 @@ export default function Checkout() {
               name="phone"
               id="phone"
               required
+              placeholder="08123456789"
+              pattern="(\+62|62|0)8[1-9][0-9]{6,9}"
+              title="Enter a valid Indonesian phone number (e.g., 08123456789, +628123456789, or 628123456789)"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
             />
+            <p className="mt-1 text-xs text-gray-500">Format: 08XXXXXXXXX, +628XXXXXXXXX, or 628XXXXXXXXX</p>
           </div>
 
           <div>
@@ -146,8 +193,12 @@ export default function Checkout() {
               name="postalCode"
               id="postalCode"
               required
+              placeholder="12345"
+              pattern="\d{5}"
+              title="Postal code must be 5 digits"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
             />
+            <p className="mt-1 text-xs text-gray-500">Enter a 5-digit postal code</p>
           </div>
 
           <div>
@@ -177,6 +228,7 @@ export default function Checkout() {
           </button>
         </div>
       </form>
-    </div>
+      </div>
+    </Layout>
   )
 }

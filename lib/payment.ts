@@ -10,9 +10,17 @@ const snap = new midtransClient.Snap({
 })
 
 export async function createPayment(order: OrderInput, user: any) {
+  // Generate a unique order ID
+  const orderId = `ORDER-${Date.now()}`;
+
+  // Base URL for redirects
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://your-production-domain.com'
+    : 'http://localhost:3003';
+
   const transactionDetails = {
     transaction_details: {
-      order_id: `ORDER-${Date.now()}`,
+      order_id: orderId,
       gross_amount: await calculateTotal(order.items),
     },
     customer_details: {
@@ -26,6 +34,11 @@ export async function createPayment(order: OrderInput, user: any) {
       address: order.shippingDetails.address,
       city: order.shippingDetails.city,
       postal_code: order.shippingDetails.postalCode,
+    },
+    callbacks: {
+      finish: `${baseUrl}/payment/success?order_id=${orderId}`,
+      error: `${baseUrl}/payment/failure?order_id=${orderId}`,
+      pending: `${baseUrl}/payment/pending?order_id=${orderId}`,
     },
   }
 
