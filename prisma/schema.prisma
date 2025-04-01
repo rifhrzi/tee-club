@@ -21,8 +21,6 @@ model User {
   email         String         @unique
   password      String
   name          String
-  orders        Order[]
-  refreshToken RefreshToken[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
