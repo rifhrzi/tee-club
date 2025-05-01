@@ -20,7 +20,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     </div>
                 </main>
                 <Footer />
-                <SimpleAuthStatus />
                 <PaymentAuthHandler />
             </div>
         </SimpleAuthProvider>

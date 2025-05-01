@@ -5,13 +5,13 @@ import React from "react";
 import useCartStore from "@/store/cartStore";
 import Link from "next/link";
 import { formatPrice } from "@/constants";
-import dynamicImport from 'next/dynamic';
+import dynamicImport from "next/dynamic";
 import DirectLoginLink from "@/components/DirectLoginLink";
+import { Variant } from "@/store/types"; // Impor tipe Variant
 
-// Import Layout with dynamic import to avoid hydration issues
-const Layout = dynamicImport(() => import('@/components/Layout'), { ssr: false });
+const Layout = dynamicImport(() => import("@/components/Layout"), { ssr: false });
 
-export const dynamic = "force-dynamic"; // Mark the page as dynamic
+export const dynamic = "force-dynamic";
 
 export default function CartPage() {
   const cart = useCartStore((state) => state.cart);
@@ -19,22 +19,24 @@ export default function CartPage() {
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const clearCart = useCartStore((state) => state.clearCart);
 
-  const total = cart.reduce(
-    (acc, item) => acc + item.product.price * item.quantity,
-    0
-  );
+  const total = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+
+  // Fungsi untuk memformat variant
+  const formatVariant = (variant?: string | Variant) => {
+    if (!variant) return null;
+    if (typeof variant === "string") return variant;
+    return variant.name;
+  };
 
   return (
     <Layout>
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900">
-          Keranjang Belanja
-        </h1>
+      <div className="rounded-lg bg-white p-8 shadow-lg">
+        <h1 className="mb-8 text-3xl font-bold text-gray-900">Keranjang Belanja</h1>
         {cart.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-600 mb-6">Keranjang belanja Anda kosong.</p>
+          <div className="py-8 text-center">
+            <p className="mb-6 text-gray-600">Keranjang belanja Anda kosong.</p>
             <Link href="/">
-              <button className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition duration-300">
+              <button className="rounded-md bg-blue-600 px-6 py-3 font-semibold text-white transition duration-300 hover:bg-blue-700">
                 Lanjut Berbelanja
               </button>
             </Link>
@@ -43,45 +45,37 @@ export default function CartPage() {
           <div>
             <ul className="divide-y divide-gray-200">
               {cart.map((item) => (
-                <li
-                  key={item.product.id}
-                  className="py-6 flex items-center justify-between"
-                >
+                <li key={item.product.id} className="flex items-center justify-between py-6">
                   <div className="flex-1">
-                    <h3 className="text-lg font-medium text-gray-900">
-                      {item.product.name}
-                    </h3>
-                    <div className="mt-1 text-sm text-gray-500 space-y-1">
+                    <h3 className="text-lg font-medium text-gray-900">{item.product.name}</h3>
+                    <div className="mt-1 space-y-1 text-sm text-gray-500">
                       {item.product.variant && (
-                        <p>Variant: {item.product.variant}</p>
+                        <p>
+                          Variant: {item.product.variant ? item.product.variant.name : "No variant"}
+                        </p>
                       )}
                     </div>
-                    <p className="mt-1 text-gray-600">
-                      {formatPrice(item.product.price)}
-                    </p>
+                    <p className="mt-1 text-gray-600">{formatPrice(item.product.price)}</p>
                   </div>
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center">
-                      <label htmlFor={`quantity-${item.product.id}`} className="sr-only">Quantity</label>
+                      <label htmlFor={`quantity-${item.product.id}`} className="sr-only">
+                        Quantity
+                      </label>
                       <input
                         id={`quantity-${item.product.id}`}
                         name={`quantity-${item.product.id}`}
                         type="number"
                         value={item.quantity}
                         min="1"
-                        onChange={(e) =>
-                          updateQuantity(
-                            item.product.id,
-                            parseInt(e.target.value)
-                          )
-                        }
-                        className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value))}
+                        className="w-20 rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
                         aria-label="Product quantity"
                       />
                     </div>
                     <button
                       onClick={() => removeFromCart(item.product.id)}
-                      className="text-red-600 hover:text-red-800 font-medium"
+                      className="font-medium text-red-600 hover:text-red-800"
                       aria-label={`Remove ${item.product.name} from cart`}
                     >
                       Hapus
@@ -91,21 +85,19 @@ export default function CartPage() {
               ))}
             </ul>
             <div className="mt-8 border-t border-gray-200 pt-8">
-              <div className="flex justify-between items-center mb-6">
+              <div className="mb-6 flex items-center justify-between">
                 <span className="text-2xl font-bold text-gray-900">Total</span>
-                <span className="text-2xl font-bold text-gray-900">
-                  {formatPrice(total)}
-                </span>
+                <span className="text-2xl font-bold text-gray-900">{formatPrice(total)}</span>
               </div>
               <div className="flex justify-end space-x-4">
                 <button
                   onClick={clearCart}
-                  className="px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 transition duration-300"
+                  className="rounded-md bg-gray-200 px-6 py-3 font-semibold text-gray-800 transition duration-300 hover:bg-gray-300"
                 >
                   Kosongkan Keranjang
                 </button>
                 <Link href="/checkout" className="inline-block">
-                  <button className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition duration-300">
+                  <button className="rounded-md bg-blue-600 px-6 py-3 font-semibold text-white transition duration-300 hover:bg-blue-700">
                     Lanjut ke Pembayaran
                   </button>
                 </Link>

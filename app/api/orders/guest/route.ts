@@ -1,19 +1,16 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
     // Get query parameters
     const url = new URL(request.url);
-    const orderId = url.searchParams.get('orderId');
-    const email = url.searchParams.get('email');
+    const orderId = url.searchParams.get("orderId");
+    const email = url.searchParams.get("email");
 
     // Validate input
     if (!orderId && !email) {
-      return NextResponse.json(
-        { error: 'Order ID or email is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Order ID or email is required" }, { status: 400 });
     }
 
     // Build the query
@@ -27,12 +24,12 @@ export async function GET(request: Request) {
       // Since ShippingDetails is a 1:1 relation, we need to use a different approach
       whereClause = {
         shippingDetails: {
-          email
-        }
+          email,
+        },
       };
     }
 
-    console.log('Guest order search with criteria:', JSON.stringify(whereClause, null, 2));
+    console.log("Guest order search with criteria:", JSON.stringify(whereClause, null, 2));
 
     try {
       // Find orders matching the criteria
@@ -45,16 +42,16 @@ export async function GET(request: Request) {
                 select: {
                   id: true,
                   name: true,
-                  images: true
-                }
-              }
-            }
+                  images: true,
+                },
+              },
+            },
           },
-          shippingDetails: true
+          shippingDetails: true,
         },
         orderBy: {
-          createdAt: 'desc'
-        }
+          createdAt: "desc",
+        },
       });
 
       console.log(`Found ${orders.length} orders for guest search`);
@@ -70,11 +67,11 @@ export async function GET(request: Request) {
 
       return NextResponse.json({ orders });
     } catch (error) {
-      console.error('Error searching for guest orders:', error);
-      return NextResponse.json(
-        { error: 'Failed to search for orders' },
-        { status: 500 }
-      );
+      console.error("Error searching for guest orders:", error);
+      return NextResponse.json({ error: "Failed to search for orders" }, { status: 500 });
     }
+  } catch (error) {
+    console.error("Error in guest order route:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

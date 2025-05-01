@@ -43,7 +43,7 @@ export const Header = () => {
               ))}
               {!isAuthenticated ? (
                 <Link
-                  href="/simple-login"
+                  href="/login"
                   className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
                 >
                   Sign In

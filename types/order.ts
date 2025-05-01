@@ -2,7 +2,13 @@ export interface Customer {
   name: string;
   email: string;
   phone: string;
-  address: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
 }
 
 export interface OrderItem {

@@ -1,10 +1,11 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface User {
   id: string;
   email: string;
   name: string;
+  role: "ADMIN" | "USER";
 }
 
 interface AuthState {
@@ -27,22 +28,22 @@ export const useSimpleAuth = create<AuthState>()(
 
       login: async (email: string, password: string, rememberMe = false) => {
         try {
-          console.log('SimpleAuth: Attempting login for:', email, 'Remember me:', rememberMe);
+          console.log("SimpleAuth: Attempting login for:", email, "Remember me:", rememberMe);
 
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),
           });
 
           if (!response.ok) {
             const error = await response.json();
-            console.error('SimpleAuth: Login failed:', error);
-            throw new Error(error.error || 'Login failed');
+            console.error("SimpleAuth: Login failed:", error);
+            throw new Error(error.error || "Login failed");
           }
 
           const data = await response.json();
-          console.log('SimpleAuth: Login successful');
+          console.log("SimpleAuth: Login successful");
 
           // Calculate expiration time based on remember me option
           const now = Date.now();
@@ -54,19 +55,19 @@ export const useSimpleAuth = create<AuthState>()(
             isAuthenticated: true,
             user: data.user,
             token: data.accessToken,
-            expiresAt: expirationTime
+            expiresAt: expirationTime,
           });
 
           return true;
         } catch (error) {
-          console.error('SimpleAuth: Login error:', error);
+          console.error("SimpleAuth: Login error:", error);
           set({ isAuthenticated: false, user: null, token: null, expiresAt: null });
           throw error;
         }
       },
 
       logout: () => {
-        console.log('SimpleAuth: Logging out');
+        console.log("SimpleAuth: Logging out");
         set({ isAuthenticated: false, user: null, token: null, expiresAt: null });
       },
 
@@ -78,7 +79,7 @@ export const useSimpleAuth = create<AuthState>()(
         const isExpired = now > expiresAt;
 
         if (isExpired) {
-          console.log('SimpleAuth: Session has expired');
+          console.log("SimpleAuth: Session has expired");
           // Auto logout if session is expired
           set({ isAuthenticated: false, user: null, token: null, expiresAt: null });
         }
@@ -87,7 +88,7 @@ export const useSimpleAuth = create<AuthState>()(
       },
     }),
     {
-      name: 'simple-auth-storage',
+      name: "simple-auth-storage",
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         user: state.user,

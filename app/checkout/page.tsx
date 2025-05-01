@@ -110,7 +110,6 @@ export default function Checkout() {
             city: formData.get('city'),
             postalCode: formData.get('postalCode'),
           },
-          paymentMethod: formData.get('paymentMethod'),
         }),
       }).catch(fetchError => {
         console.error('Fetch error during checkout:', fetchError)
@@ -118,13 +117,6 @@ export default function Checkout() {
       })
 
       console.log('Checkout API response status:', response.status)
-
-
-
-
-
-
-
 
       const data = await response.json()
       console.log('Checkout API response data:', data)
@@ -260,20 +252,6 @@ export default function Checkout() {
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
             />
             <p className="mt-1 text-xs text-gray-500">Enter a 5-digit postal code</p>
-          </div>
-
-          <div>
-            <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-700">Payment Method</label>
-            <select
-              name="paymentMethod"
-              id="paymentMethod"
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-            >
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="ewallet">E-Wallet</option>
-              <option value="cod">Cash on Delivery</option>
-            </select>
           </div>
         </div>
 

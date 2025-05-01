@@ -69,8 +69,22 @@ model Order {
   totalAmount     Float
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  paymentDetails  PaymentDetails?  @relation // Tambahkan relasi
 
   @@index([userId])
+}
+
+model PaymentDetails {
+  id            String   @id @default(cuid())
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider      String
+  transactionId String
+  status        String
+  amount        Float
+  rawResponse   String   // Simpan JSON sebagai string
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model OrderItem {

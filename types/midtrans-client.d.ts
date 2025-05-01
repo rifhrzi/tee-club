@@ -1,4 +1,4 @@
-declare module 'midtrans-client' {
+declare module "midtrans-client" {
   interface SnapConfig {
     isProduction: boolean;
     serverKey: string;
@@ -34,12 +34,29 @@ declare module 'midtrans-client' {
     redirect_url: string;
   }
 
+  interface NotificationResponse {
+    transaction_id: string;
+    order_id: string;
+    transaction_status: string;
+    fraud_status: string;
+    payment_type: string;
+    [key: string]: any; // Untuk properti tambahan yang mungkin ada
+  }
+
   class Snap {
     constructor(config: SnapConfig);
     createTransaction(details: TransactionDetails): Promise<TransactionResponse>;
   }
 
+  class CoreApi {
+    constructor(config: SnapConfig);
+    transaction: {
+      notification(body: any): Promise<NotificationResponse>;
+    };
+  }
+
   export = {
-    Snap: Snap
+    Snap: Snap,
+    CoreApi: CoreApi,
   };
 }

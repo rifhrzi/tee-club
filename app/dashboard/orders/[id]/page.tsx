@@ -18,7 +18,13 @@ const dummyOrder: Order = {
     name: "John Doe",
     email: "john@example.com",
     phone: "081234567890",
-    address: "Jl. Contoh No. 123, Kota Contoh",
+    address: {
+      street: "Jl. Contoh No. 123",
+      city: "Jakarta",
+      state: "DKI Jakarta",
+      postalCode: "12345",
+      country: "Indonesia",
+    },
   },
   items: [
     {

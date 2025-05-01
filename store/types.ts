@@ -1,4 +1,12 @@
 // store/types.ts
+export interface Variant {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  productId: string;
+}
+
 export interface Product {
   id: string | number;
   name: string;
@@ -6,7 +14,7 @@ export interface Product {
   description?: string;
   stock?: number;
   images?: string[];
-  variant?: string;
+  variant?: Variant; // Gunakan struktur Prisma
   variantId?: string;
 }
 

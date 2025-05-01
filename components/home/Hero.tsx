@@ -10,14 +10,6 @@ export const Hero = () => {
                 <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-4">
                     {SITE_CONFIG.description}
                 </p>
-                <div className="flex justify-center space-x-4">
-                    <Link href="/shop" className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                        Shop Now
-                    </Link>
-                    <Link href="/simple-login" className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                        Try Simple Login
-                    </Link>
-                </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <img
