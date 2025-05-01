@@ -20,12 +20,6 @@ export async function POST(request: Request) {
 
     // Auth check
     const token = request.headers.get('authorization')?.split(' ')[1]
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
 
     // Verify token and get user
     const decoded = verifyToken(token)

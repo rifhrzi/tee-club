@@ -10,7 +10,6 @@ import useCartStore from '@/store/cartStore';
 const Layout = dynamic(() => import('@/components/Layout'), { ssr: false });
 
 export default function PaymentSuccessPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const clearCart = useCartStore((state) => state.clearCart);
   
