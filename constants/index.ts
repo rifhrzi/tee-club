@@ -44,17 +44,19 @@ export interface ProductVariant {
 }
 
 export interface Product {
-  id: number;
+  id: string | number;
   name: string;
   description: string;
   price: number;
-  image: string;
   stock: number;
-  sizes: string[];
-  variant?: {
+  images: string[];
+  image?: string; // For backward compatibility
+  sizes?: string[]; // For backward compatibility
+  variant?: string | {
     size: string;
     color: string;
   };
+  variantId?: string;
 }
 
 export const PRODUCTS = {
@@ -63,10 +65,9 @@ export const PRODUCTS = {
       id: 1,
       name: "Classic White Tee",
       price: 299000,
-      image:
-        "https://images.pexels.com/photos/1566412/pexels-photo-1566412.jpeg?auto=compress&cs=tinysrgb&w=800",
-      description:
-        "Kaos putih klasik dengan bahan premium 100% katun yang nyaman dipakai sehari-hari.",
+      image: "https://images.pexels.com/photos/1566412/pexels-photo-1566412.jpeg?auto=compress&cs=tinysrgb&w=800",
+      images: ["https://images.pexels.com/photos/1566412/pexels-photo-1566412.jpeg?auto=compress&cs=tinysrgb&w=800"],
+      description: "Kaos putih klasik dengan bahan premium 100% katun yang nyaman dipakai sehari-hari.",
       stock: 50,
       sizes: ["S", "M", "L", "XL"],
     },
@@ -74,10 +75,9 @@ export const PRODUCTS = {
       id: 2,
       name: "Urban Black Tee",
       price: 349000,
-      image:
-        "https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&w=800",
-      description:
-        "Kaos hitam urban dengan desain minimalis yang cocok untuk gaya kasual maupun semi-formal.",
+      image: "https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&w=800",
+      images: ["https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&w=800"],
+      description: "Kaos hitam urban dengan desain minimalis yang cocok untuk gaya kasual maupun semi-formal.",
       stock: 35,
       sizes: ["M", "L", "XL", "XXL"],
     },
@@ -85,10 +85,9 @@ export const PRODUCTS = {
       id: 3,
       name: "Vintage Print Tee",
       price: 399000,
-      image:
-        "https://images.pexels.com/photos/1018911/pexels-photo-1018911.jpeg?auto=compress&cs=tinysrgb&w=800",
-      description:
-        "Kaos dengan print vintage yang unik, memberikan tampilan retro yang stylish.",
+      image: "https://images.pexels.com/photos/1018911/pexels-photo-1018911.jpeg?auto=compress&cs=tinysrgb&w=800",
+      images: ["https://images.pexels.com/photos/1018911/pexels-photo-1018911.jpeg?auto=compress&cs=tinysrgb&w=800"],
+      description: "Kaos dengan print vintage yang unik, memberikan tampilan retro yang stylish.",
       stock: 25,
       sizes: ["S", "M", "L"],
     },

@@ -1,99 +1,105 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { useSimpleAuth } from '@/hooks/useSimpleAuth'
-import Link from 'next/link'
-import SocialLoginButton from '@/components/SocialLoginButton'
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
+import Link from 'next/link';
+import SocialLoginButton from '@/components/SocialLoginButton';
 
-export default function LoginPage() {
-  const searchParams = useSearchParams()
-  const { login, isAuthenticated, user } = useSimpleAuth()
-  const [loading, setLoading] = useState(false)
-  const [socialLoading, setSocialLoading] = useState<string | null>(null)
-  const [error, setError] = useState('')
-  const [redirectPath, setRedirectPath] = useState('/')
-  const [rememberMe, setRememberMe] = useState(false)
+export default function SimpleLoginPage() {
+  const searchParams = useSearchParams();
+  const { login, isAuthenticated, user } = useSimpleAuth();
+  const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [redirectPath, setRedirectPath] = useState('/');
+  const [rememberMe, setRememberMe] = useState(false);
 
   // Check if user is already logged in and handle redirect
   useEffect(() => {
     // Get the redirect path from URL parameter
-    const redirect = searchParams.get('redirect') || '/'
-    setRedirectPath(redirect)
-    console.log('Login: Loaded with redirect path:', redirect)
+    const redirect = searchParams.get('redirect') || '/';
+    setRedirectPath(redirect);
+    console.log('SimpleLogin: Loaded with redirect path:', redirect);
 
     // If already logged in, redirect immediately
     if (isAuthenticated && user) {
-      console.log('Login: User already logged in, redirecting to:', redirect)
-      window.location.href = redirect
+      console.log('SimpleLogin: User already logged in, redirecting to:', redirect);
+      window.location.href = redirect;
     } else {
-      console.log('Login: User not logged in, showing login form')
+      console.log('SimpleLogin: User not logged in, showing login form');
     }
-  }, [isAuthenticated, user, searchParams])
+  }, [isAuthenticated, user, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
     try {
-      const formData = new FormData(e.currentTarget)
-      const email = formData.get('email') as string
-      const password = formData.get('password') as string
+      const formData = new FormData(e.currentTarget);
+      const email = formData.get('email') as string;
+      const password = formData.get('password') as string;
 
-      console.log('Login: Attempting login for:', email, 'Remember me:', rememberMe)
-      await login(email, password, rememberMe)
+      console.log('SimpleLogin: Attempting login for:', email, 'Remember me:', rememberMe);
+      await login(email, password, rememberMe);
 
       // At this point, login was successful
-      console.log('Login: Login successful, redirecting to:', redirectPath)
+      console.log('SimpleLogin: Login successful, redirecting to:', redirectPath);
 
       // Redirect after successful login
-      window.location.href = redirectPath
+      window.location.href = redirectPath;
     } catch (error) {
-      console.error('Login: Login error:', error)
-      setError(error instanceof Error ? error.message : 'Login failed')
-      setLoading(false)
+      console.error('SimpleLogin: Login error:', error);
+      setError(error instanceof Error ? error.message : 'Login failed');
+      setLoading(false);
     }
-  }
+  };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook' | 'github') => {
     try {
-      setError('')
-      setSocialLoading(provider)
+      setError('');
+      setSocialLoading(provider);
 
-      console.log(`Login: Attempting ${provider} login`)
+      console.log(`SimpleLogin: Attempting ${provider} login`);
 
       // In a real application, this would redirect to the OAuth provider
       // For now, we'll simulate a successful login after a delay
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       // Simulate a successful login with mock user data
       const mockUserData = {
         id: '123456',
         email: `user@${provider}.com`,
         name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} User`
-      }
+      };
 
       // Call the login function with the mock user data
-      await login(mockUserData.email, 'social-auth-token', rememberMe)
+      await login(mockUserData.email, 'social-auth-token', rememberMe);
 
-      console.log(`Login: ${provider} login successful, redirecting to:`, redirectPath)
-      window.location.href = redirectPath
+      console.log(`SimpleLogin: ${provider} login successful, redirecting to:`, redirectPath);
+      window.location.href = redirectPath;
     } catch (error) {
-      console.error(`Login: ${provider} login error:`, error)
-      setError(`${provider} login failed. Please try again.`)
+      console.error(`SimpleLogin: ${provider} login error:`, error);
+      setError(`${provider} login failed. Please try again.`);
     } finally {
-      setSocialLoading(null)
+      setSocialLoading(null);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            Simple Login
           </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Or{' '}
+            <Link href="/" className="font-medium text-blue-600 hover:text-blue-500">
+              go back to home
+            </Link>
+          </p>
         </div>
 
         {error && (
@@ -138,6 +144,7 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
+                autoComplete="email"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
@@ -149,6 +156,7 @@ export default function LoginPage() {
                 id="password"
                 name="password"
                 type="password"
+                autoComplete="current-password"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Password"
@@ -182,23 +190,14 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || !!socialLoading}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mt-4 ${
                 loading || socialLoading ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
               {loading ? 'Signing in...' : socialLoading ? `Signing in with ${socialLoading}...` : 'Sign in'}
             </button>
           </div>
-
-          <div className="text-sm text-center">
-            <Link
-              href="/signup"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              Don't have an account? Sign up
-            </Link>
-          </div>
-        </form>
+          </form>
         </div>
       </div>
     </div>

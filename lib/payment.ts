@@ -14,9 +14,17 @@ export async function createPayment(order: OrderInput, user: any) {
   const orderId = `ORDER-${Date.now()}`;
 
   // Base URL for redirects
-  const baseUrl = process.env.NODE_ENV === 'production'
-    ? 'https://your-production-domain.com'
-    : 'http://localhost:3003';
+  // Get the base URL from the request headers or environment variables
+  let baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
+  // If not set, use a default based on environment
+  if (!baseUrl) {
+    baseUrl = process.env.NODE_ENV === 'production'
+      ? 'https://your-production-domain.com'
+      : 'http://localhost:3001'; // Updated to use 3001 for development
+  }
+
+  console.log('Payment creation - Using base URL:', baseUrl);
 
   const transactionDetails = {
     transaction_details: {
@@ -47,6 +55,7 @@ export async function createPayment(order: OrderInput, user: any) {
     return {
       token: transaction.token,
       redirect_url: transaction.redirect_url,
+      orderId,
     }
   } catch (error) {
     console.error('Midtrans payment creation failed:', error)

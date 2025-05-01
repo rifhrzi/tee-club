@@ -1,0 +1,141 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useSimpleAuth } from '@/hooks/useSimpleAuth';
+
+// Admin sidebar navigation items
+const ADMIN_NAV = [
+  { name: 'Dashboard', href: '/admin', icon: 'chart-line' },
+  { name: 'Products', href: '/admin/products', icon: 'tshirt' },
+  { name: 'Orders', href: '/admin/orders', icon: 'shopping-cart' },
+  { name: 'Users', href: '/admin/users', icon: 'users' },
+  { name: 'Settings', href: '/admin/settings', icon: 'cog' },
+];
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const { user, isAuthenticated, logout } = useSimpleAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Check if we're on the client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Check if user is admin
+  useEffect(() => {
+    if (isClient && (!isAuthenticated || !user || user.role !== 'ADMIN')) {
+      // Redirect to login if not authenticated or not admin
+      window.location.href = `/login?redirect=${pathname}`;
+    }
+  }, [isClient, isAuthenticated, user, pathname]);
+
+  // If not on client side yet, show nothing to prevent hydration mismatch
+  if (!isClient) {
+    return null;
+  }
+
+  // If not authenticated or not admin, show nothing (will redirect)
+  if (!isAuthenticated || !user || user.role !== 'ADMIN') {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Mobile sidebar backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-gray-900 text-white transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out`}>
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-800">
+          <Link href="/admin" className="text-xl font-bold">
+            Teelite Admin
+          </Link>
+          <button 
+            className="p-1 rounded-md lg:hidden hover:bg-gray-800"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            <i className="fas fa-times text-lg"></i>
+          </button>
+        </div>
+        <div className="px-2 py-4">
+          <ul className="space-y-1">
+            {ADMIN_NAV.map((item) => (
+              <li key={item.name}>
+                <Link
+                  href={item.href}
+                  className={`flex items-center px-4 py-2 text-sm rounded-md ${
+                    pathname === item.href
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  <i className={`fas fa-${item.icon} w-5 h-5 mr-3`}></i>
+                  {item.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="absolute bottom-0 w-full border-t border-gray-800">
+          <div className="px-4 py-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                  <i className="fas fa-user text-gray-300"></i>
+                </div>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-white">{user.name}</p>
+                <p className="text-xs text-gray-400">{user.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => logout()}
+              className="mt-3 w-full flex items-center px-4 py-2 text-sm text-gray-300 rounded-md hover:bg-gray-700"
+            >
+              <i className="fas fa-sign-out-alt w-5 h-5 mr-3"></i>
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="lg:pl-64">
+        {/* Top navbar */}
+        <div className="sticky top-0 z-10 flex items-center justify-between h-16 px-4 bg-white shadow-sm">
+          <button
+            className="p-1 text-gray-700 lg:hidden"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <i className="fas fa-bars text-lg"></i>
+          </button>
+          <div className="flex items-center">
+            <Link href="/" className="text-gray-700 hover:text-gray-900 mr-4">
+              <i className="fas fa-home mr-1"></i> View Site
+            </Link>
+            <div className="relative">
+              <button className="p-1 text-gray-700 hover:text-gray-900">
+                <i className="fas fa-bell text-lg"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Page content */}
+        <main className="p-4 md:p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}

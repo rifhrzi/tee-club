@@ -16,22 +16,44 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Check if user is authenticated
+  // Check if user is authenticated, but don't require it
   useEffect(() => {
-    if (!accessToken || !user) {
-      router.push('/login?redirect=/checkout')
+    // Clear any previous redirect attempts
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('checkout_redirect_attempts')
+      localStorage.removeItem('login_redirect')
     }
-  }, [accessToken, user, router])
+
+    console.log('Checkout page - Auth state:', {
+      accessToken: !!accessToken,
+      user: !!user
+    })
+
+    // Log authentication status but don't redirect
+    if (accessToken && user) {
+      console.log('User is authenticated:', user.email)
+    } else {
+      console.log('Guest checkout - no authentication required')
+    }
+  }, [accessToken, user]) // Depend on auth state
 
   const handleCheckout = async (formData: FormData) => {
     try {
       setLoading(true)
       setError('')
 
-      // Check if user is authenticated
-      if (!accessToken || !user) {
-        router.push('/login?redirect=/checkout')
+      // Check if cart is empty
+      if (cart.length === 0) {
+        setError('Your cart is empty. Please add items to your cart before checkout.')
+        setLoading(false)
         return
+      }
+
+      // Check if user is authenticated - for logging only
+      if (accessToken && user) {
+        console.log('Proceeding with authenticated checkout for:', user.email)
+      } else {
+        console.log('Proceeding with guest checkout')
       }
 
       // Transform cart items to match the expected API format
@@ -43,8 +65,10 @@ export default function Checkout() {
         };
 
         // Only add variantId if it exists
-        if (item.product.variantId) {
-          transformedItem.variantId = item.product.variantId;
+        // Use type assertion to handle the property that might not be in all versions of the type
+        const product = item.product as any;
+        if (product.variantId) {
+          transformedItem.variantId = product.variantId;
         }
 
         return transformedItem;
@@ -60,12 +84,22 @@ export default function Checkout() {
             ? phoneInput.replace('62', '0')
             : `0${phoneInput}`;
 
+      // Prepare headers - include auth token if available
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+
+      // Add authorization header if user is logged in
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`
+      }
+
+      console.log('Sending checkout request with items:', transformedItems.length)
+
+      // Make the API request
       const response = await fetch('/api/checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
+        headers,
         body: JSON.stringify({
           items: transformedItems,
           shippingDetails: {
@@ -78,9 +112,22 @@ export default function Checkout() {
           },
           paymentMethod: formData.get('paymentMethod'),
         }),
+      }).catch(fetchError => {
+        console.error('Fetch error during checkout:', fetchError)
+        throw new Error('Network error during checkout. Please check your internet connection and try again.')
       })
 
+      console.log('Checkout API response status:', response.status)
+
+
+
+
+
+
+
+
       const data = await response.json()
+      console.log('Checkout API response data:', data)
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -102,6 +149,20 @@ export default function Checkout() {
         }
 
         throw new Error(data.error || 'Checkout failed')
+      }
+
+      // Store the order ID and authentication state in localStorage before redirecting
+      if (typeof window !== 'undefined') {
+        if (data.orderId) {
+          localStorage.setItem('pending_order_id', data.orderId);
+          console.log('Stored pending order ID:', data.orderId);
+        }
+
+        // Store authentication token for the payment process
+        if (accessToken) {
+          localStorage.setItem('payment_auth_token', accessToken);
+          console.log('Stored authentication token for payment');
+        }
       }
 
       // Redirect to Midtrans payment page

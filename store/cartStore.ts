@@ -1,30 +1,33 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { Product } from "@/constants";
 
 interface CartItem {
-  product: Product & { variant?: { size: string; color: string } };
+  product: Product;
   quantity: number;
 }
 
 interface CartStore {
   cart: CartItem[];
   addToCart: (product: Product) => void;
-  removeFromCart: (productId: number) => void;
-  updateQuantity: (productId: number, quantity: number) => void;
+  removeFromCart: (productId: string | number) => void;
+  updateQuantity: (productId: string | number, quantity: number) => void;
   clearCart: () => void;
 }
 
-const useCartStore = create<CartStore>((set) => ({
+const useCartStore = create<CartStore>(
+  persist(
+    (set) => ({
   cart: [],
   addToCart: (product) =>
     set((state) => {
       const existingItem = state.cart.find(
-        (item) => item.product.id === product.id
+        (item) => String(item.product.id) === String(product.id)
       );
       if (existingItem) {
         return {
           cart: state.cart.map((item) =>
-            item.product.id === product.id
+            String(item.product.id) === String(product.id)
               ? { ...item, quantity: item.quantity + 1 }
               : item
           ),
@@ -34,15 +37,21 @@ const useCartStore = create<CartStore>((set) => ({
     }),
   removeFromCart: (productId) =>
     set((state) => ({
-      cart: state.cart.filter((item) => item.product.id !== productId),
+      cart: state.cart.filter((item) => String(item.product.id) !== String(productId)),
     })),
   updateQuantity: (productId, quantity) =>
     set((state) => ({
       cart: state.cart.map((item) =>
-        item.product.id === productId ? { ...item, quantity } : item
+        String(item.product.id) === String(productId) ? { ...item, quantity } : item
       ),
     })),
   clearCart: () => set({ cart: [] }),
-}));
+}),
+{
+  name: "cart-storage",
+  // Only store the cart items
+  partialize: (state) => ({ cart: state.cart }),
+})
+);
 
 export default useCartStore;

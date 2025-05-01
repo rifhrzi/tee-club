@@ -6,6 +6,7 @@ import useCartStore from "@/store/cartStore";
 import Link from "next/link";
 import { formatPrice } from "@/constants";
 import dynamicImport from 'next/dynamic';
+import DirectLoginLink from "@/components/DirectLoginLink";
 
 // Import Layout with dynamic import to avoid hydration issues
 const Layout = dynamicImport(() => import('@/components/Layout'), { ssr: false });
@@ -60,21 +61,28 @@ export default function CartPage() {
                     </p>
                   </div>
                   <div className="flex items-center space-x-4">
-                    <input
-                      type="number"
-                      value={item.quantity}
-                      min="1"
-                      onChange={(e) =>
-                        updateQuantity(
-                          item.product.id,
-                          parseInt(e.target.value)
-                        )
-                      }
-                      className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
+                    <div className="flex items-center">
+                      <label htmlFor={`quantity-${item.product.id}`} className="sr-only">Quantity</label>
+                      <input
+                        id={`quantity-${item.product.id}`}
+                        name={`quantity-${item.product.id}`}
+                        type="number"
+                        value={item.quantity}
+                        min="1"
+                        onChange={(e) =>
+                          updateQuantity(
+                            item.product.id,
+                            parseInt(e.target.value)
+                          )
+                        }
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        aria-label="Product quantity"
+                      />
+                    </div>
                     <button
                       onClick={() => removeFromCart(item.product.id)}
                       className="text-red-600 hover:text-red-800 font-medium"
+                      aria-label={`Remove ${item.product.name} from cart`}
                     >
                       Hapus
                     </button>
@@ -96,7 +104,7 @@ export default function CartPage() {
                 >
                   Kosongkan Keranjang
                 </button>
-                <Link href="/checkout">
+                <Link href="/checkout" className="inline-block">
                   <button className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition duration-300">
                     Lanjut ke Pembayaran
                   </button>

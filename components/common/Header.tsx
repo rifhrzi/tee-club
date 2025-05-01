@@ -1,12 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { MobileMenu } from "./MobileMenu";
 import { SITE_CONFIG, NAVIGATION } from "../../constants";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 
 export const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useSimpleAuth();
+
+  // Debug: Log authentication state
+  useEffect(() => {
+    console.log('Header - Auth State:', {
+      isLoggedIn: isAuthenticated,
+      user: user ? user.email : 'not logged in'
+    });
+  }, [user, isAuthenticated]);
 
   return (
     <header className="sticky top-0 z-50 border-b bg-white">
@@ -31,12 +41,29 @@ export const Header = () => {
                   {item.name}
                 </Link>
               ))}
-              <Link
-                href="/login"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
-              >
-                Sign In
-              </Link>
+              {!isAuthenticated ? (
+                <Link
+                  href="/simple-login"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                >
+                  Sign In
+                </Link>
+              ) : (
+                <div className="flex items-center space-x-4">
+                  <Link
+                    href="/simple-orders"
+                    className="text-gray-700 transition-colors hover:text-gray-900"
+                  >
+                    My Orders
+                  </Link>
+                  <button
+                    onClick={() => logout()}
+                    className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-300"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              )}
             </nav>
 
             {/* Mobile Menu Button */}
@@ -51,7 +78,11 @@ export const Header = () => {
         </div>
 
         {/* Mobile Navigation */}
-        <MobileMenu isOpen={isMobileMenuOpen} />
+        <MobileMenu
+          isOpen={isMobileMenuOpen}
+          user={user}
+          logout={logout}
+        />
       </div>
     </header>
   );

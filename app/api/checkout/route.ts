@@ -18,25 +18,59 @@ export async function POST(request: Request) {
       )
     }
 
-    // Auth check
+    // Check for authentication token (optional)
+    let user = null
     const token = request.headers.get('authorization')?.split(' ')[1]
 
-    // Verify token and get user
-    const decoded = verifyToken(token)
-    const user = await db.user.findUnique({
-      where: { id: decoded.userId }
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
+    // If token exists, verify it and get the user
+    if (token) {
+      try {
+        const decoded = verifyToken(token)
+        user = await db.user.findUnique({
+          where: { id: decoded.userId }
+        })
+        console.log('Authenticated checkout for user:', user?.email)
+      } catch (error) {
+        console.log('Invalid token, proceeding with guest checkout')
+      }
+    } else {
+      console.log('No token provided, proceeding with guest checkout')
     }
 
     // Validate request body
     const body = await request.json()
     const validatedData = orderSchema.parse(body)
+
+    // Create a guest user if not authenticated
+    if (!user) {
+      // Check if a user with this email already exists
+      const existingUser = await db.user.findUnique({
+        where: { email: validatedData.shippingDetails.email }
+      })
+
+      if (existingUser) {
+        // Use the existing user
+        user = existingUser
+        console.log('Using existing user account:', user.email)
+      } else {
+        // Create a temporary guest user
+        user = await db.user.create({
+          data: {
+            email: validatedData.shippingDetails.email,
+            name: validatedData.shippingDetails.name,
+            password: Math.random().toString(36).substring(2, 15), // Random password
+          }
+        })
+        console.log('Created guest user:', user.email)
+      }
+    }
+
+    // Get the origin from the request headers
+    const origin = request.headers.get('origin') || 'http://localhost:3001';
+    console.log('Checkout API - Request origin:', origin);
+
+    // Set the base URL environment variable
+    process.env.NEXT_PUBLIC_BASE_URL = origin;
 
     // Create payment
     const payment = await createPayment(validatedData, user)
@@ -111,7 +145,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       orderId: order.id,
-      redirectUrl: payment.redirect_url
+      redirectUrl: payment.redirect_url,
     })
 
   } catch (error) {
