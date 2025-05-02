@@ -44,7 +44,7 @@ function LoginContent() {
       console.log("Login: Attempting login for:", email, "Remember me:", rememberMe);
       await login(email, password, rememberMe);
 
-      console.log("Login: Login successful, redirecting to:", redirectPath);
+      console.log("Login: Login successful, redirecting too:", redirectPath);
       window.location.href = redirectPath;
     } catch (error) {
       console.error("Login: Login error:", error);
