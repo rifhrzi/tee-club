@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import midtransClient from "midtrans-client";
 import { db } from "@/lib/db";
+import { reduceProductStock } from "@/lib/services/products";
 
 export async function POST(request: Request) {
   try {
@@ -46,13 +47,38 @@ export async function POST(request: Request) {
           { id: { startsWith: orderId.replace("ORDER-", "") } },
         ],
       },
+      include: {
+        items: true
+      }
     });
 
     if (order) {
+      // Update order status
       await db.order.update({
         where: { id: order.id },
         data: { status: orderStatus },
       });
+
+      // If payment is successful, reduce stock for each item
+      if (orderStatus === "PAID") {
+        console.log(`Midtrans: Order ${order.id} is paid, reducing stock for ${order.items.length} items`);
+
+        try {
+          // Process each order item
+          for (const item of order.items) {
+            await reduceProductStock(
+              item.productId,
+              item.quantity,
+              item.variantId || undefined
+            );
+          }
+          console.log(`Midtrans: Successfully reduced stock for all items in order ${order.id}`);
+        } catch (stockError) {
+          console.error(`Midtrans: Error reducing stock for order ${order.id}:`, stockError);
+          // We don't want to fail the whole request if stock reduction fails
+          // Just log the error and continue
+        }
+      }
     } else {
       console.error(`Order not found for notification: ${orderId}`);
     }

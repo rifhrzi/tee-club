@@ -44,6 +44,7 @@ export const useSimpleAuth = create<AuthState>()(
 
           const data = await response.json();
           console.log("SimpleAuth: Login successful");
+          console.log("SimpleAuth: User data received:", data.user);
 
           // Calculate expiration time based on remember me option
           const now = Date.now();

@@ -20,12 +20,29 @@ function LoginContent() {
 
   useEffect(() => {
     const redirect = searchParams.get("redirect") || "/";
+    const accessDenied = searchParams.get("access_denied") === "true";
+
     setRedirectPath(redirect);
     console.log("Login: Loaded with redirect path:", redirect);
 
+    // Check for access denied parameter
+    if (accessDenied) {
+      console.log("Login: Access denied parameter detected");
+      setError("You don't have permission to access the admin area");
+      return;
+    }
+
+    // Check if user is authenticated
     if (isAuthenticated && user) {
-      console.log("Login: User already logged in, redirecting to:", redirect);
-      window.location.href = redirect;
+      // Check if trying to access admin page but user is not admin
+      if (redirect.startsWith("/admin") && user.role !== "ADMIN") {
+        console.log("Login: User is not admin, showing error message");
+        setError("You don't have permission to access the admin area");
+      } else {
+        // User is authenticated and has proper permissions
+        console.log("Login: User already logged in, redirecting to:", redirect);
+        window.location.href = redirect;
+      }
     } else {
       console.log("Login: User not logged in, showing login form");
     }

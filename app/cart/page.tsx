@@ -1,7 +1,7 @@
 "use client";
 
 // app/cart/page.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import useCartStore from "@/store/cartStore";
 import Link from "next/link";
 import { formatPrice } from "@/constants";
@@ -14,19 +14,49 @@ const Layout = dynamicImport(() => import("@/components/Layout"), { ssr: false }
 export const dynamic = "force-dynamic";
 
 export default function CartPage() {
+  // Add state to handle hydration and initialization
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Use the cart store
   const cart = useCartStore((state) => state.cart);
+  const initialized = useCartStore((state) => state.initialized);
+  const initializeStore = useCartStore((state) => state.initializeStore);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const clearCart = useCartStore((state) => state.clearCart);
 
+  // Set hydrated state and initialize store once the component mounts
+  useEffect(() => {
+    setIsHydrated(true);
+
+    // Initialize the store if it hasn't been initialized yet
+    if (!initialized) {
+      initializeStore();
+    }
+  }, [initialized, initializeStore]);
+
   const total = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
 
-  // Fungsi untuk memformat variant
+  // Fungsi untuk memformat variant (used in JSX below)
   const formatVariant = (variant?: string | Variant) => {
     if (!variant) return null;
     if (typeof variant === "string") return variant;
     return variant.name;
   };
+
+  // Show loading or empty state while hydrating
+  if (!isHydrated) {
+    return (
+      <Layout>
+        <div className="rounded-lg bg-white p-8 shadow-lg">
+          <h1 className="mb-8 text-3xl font-bold text-gray-900">Keranjang Belanja</h1>
+          <div className="py-8 text-center">
+            <p className="mb-6 text-gray-600">Memuat keranjang belanja...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

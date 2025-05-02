@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Header, Footer } from './common';
 import SimpleAuthStatus from './SimpleAuthStatus';
 import SimpleAuthProvider from './SimpleAuthProvider';
@@ -10,6 +10,13 @@ import dynamic from 'next/dynamic';
 const PaymentAuthHandler = dynamic(() => import('./payment/PaymentAuthHandler'), { ssr: false });
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [isClient, setIsClient] = useState(false);
+
+    // Set client-side flag once component mounts
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     return (
         <SimpleAuthProvider>
             <div className="min-h-screen flex flex-col bg-gray-50">

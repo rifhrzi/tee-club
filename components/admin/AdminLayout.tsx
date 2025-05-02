@@ -14,6 +14,12 @@ const ADMIN_NAV = [
   { name: 'Settings', href: '/admin/settings', icon: 'cog' },
 ];
 
+// Development tools - only shown in development mode
+const DEV_TOOLS = process.env.NODE_ENV !== 'production' ? [
+  { name: 'Test Stock', href: '/admin/test-stock', icon: 'flask' },
+  { name: 'Create Admin', href: '/admin/create-admin', icon: 'user-shield' },
+] : [];
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useSimpleAuth();
@@ -27,9 +33,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Check if user is admin
   useEffect(() => {
-    if (isClient && (!isAuthenticated || !user || user.role !== 'ADMIN')) {
-      // Redirect to login if not authenticated or not admin
-      window.location.href = `/login?redirect=${pathname}`;
+    if (isClient) {
+      if (!isAuthenticated || !user) {
+        // Not authenticated, redirect to login
+        console.log('AdminLayout: User not authenticated, redirecting to login');
+        window.location.href = `/login?redirect=${pathname}`;
+      } else if (user.role !== 'ADMIN') {
+        // Authenticated but not admin, redirect to login with a specific message
+        console.log('AdminLayout: User not admin, redirecting to login');
+        // Add a query parameter to indicate access denied
+        window.location.href = `/login?redirect=${pathname}&access_denied=true`;
+      }
     }
   }, [isClient, isAuthenticated, user, pathname]);
 
@@ -47,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-gray-100">
       {/* Mobile sidebar backdrop */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -59,7 +73,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin" className="text-xl font-bold">
             Teelite Admin
           </Link>
-          <button 
+          <button
             className="p-1 rounded-md lg:hidden hover:bg-gray-800"
             onClick={() => setIsSidebarOpen(false)}
           >
@@ -83,6 +97,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </Link>
               </li>
             ))}
+
+            {DEV_TOOLS.length > 0 && (
+              <>
+                <li className="pt-4 pb-2">
+                  <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Development Tools
+                  </div>
+                </li>
+                {DEV_TOOLS.map((item) => (
+                  <li key={item.name}>
+                    <Link
+                      href={item.href}
+                      className={`flex items-center px-4 py-2 text-sm rounded-md ${
+                        pathname === item.href
+                          ? 'bg-gray-800 text-white'
+                          : 'text-gray-300 hover:bg-gray-700'
+                      }`}
+                    >
+                      <i className={`fas fa-${item.icon} w-5 h-5 mr-3`}></i>
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
+              </>
+            )}
           </ul>
         </div>
         <div className="absolute bottom-0 w-full border-t border-gray-800">
