@@ -2,11 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, redirect } from "next/navigation";
+import { verifyToken } from "@/lib/auth";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
+  const result = verifyToken(localStorage.getItem("token") || "");
+  if (!result) {
+    redirect("/login");
+  }
 
   const stats = [
     { name: "Total Pesanan", value: "24", change: "+12%" },

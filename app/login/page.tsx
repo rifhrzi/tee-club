@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSimpleAuth } from "@/hooks/useSimpleAuth";
@@ -7,78 +6,65 @@ import Link from "next/link";
 import SocialLoginButton from "@/components/SocialLoginButton";
 import { Suspense } from "react";
 
-export const dynamic = "force-dynamic"; // Force dynamic rendering
+interface SocialLoginButtonProps {
+  provider: "google" | "facebook" | "github";
+  onClick: () => void | Promise<void>;
+  disabled?: boolean;
+}
 
+export const dynamic = "force-dynamic";
 function LoginContent() {
   const searchParams = useSearchParams();
   const { login, isAuthenticated, user } = useSimpleAuth();
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [redirectPath, setRedirectPath] = useState("/");
+  const [redirectPath, setRedirectPath] = useState("/home");
   const [rememberMe, setRememberMe] = useState(false);
-
   useEffect(() => {
-    const redirect = searchParams.get("redirect") || "/";
+    const redirect = searchParams.get("redirect") || "/home";
     setRedirectPath(redirect);
-    console.log("Login: Loaded with redirect path:", redirect);
-
     if (isAuthenticated && user) {
-      console.log("Login: User already logged in, redirecting to:", redirect);
-      window.location.href = redirect;
-    } else {
-      console.log("Login: User not logged in, showing login form");
+      const targetPath = user.role === "ADMIN" ? "/dashboard" : redirect;
+      window.location.href = targetPath;
     }
   }, [isAuthenticated, user, searchParams]);
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-
     try {
       const formData = new FormData(e.currentTarget);
       const email = formData.get("email") as string;
       const password = formData.get("password") as string;
-
-      console.log("Login: Attempting login for:", email, "Remember me:", rememberMe);
       await login(email, password, rememberMe);
-
-      console.log("Login: Login successful, redirecting too:", redirectPath);
-      window.location.href = redirectPath;
+      const targetPath = user?.role === "ADMIN" ? "/dashboard" : redirectPath;
+      window.location.href = targetPath;
     } catch (error) {
-      console.error("Login: Login error:", error);
       setError(error instanceof Error ? error.message : "Login failed");
       setLoading(false);
     }
   };
-
   const handleSocialLogin = async (provider: "google" | "facebook" | "github") => {
     try {
       setError("");
       setSocialLoading(provider);
-
-      console.log(`Login: Attempting ${provider} login`);
       await new Promise((resolve) => setTimeout(resolve, 1500));
-
       const mockUserData = {
         id: "123456",
         email: `user@${provider}.com`,
         name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} User`,
+        role: "USER",
       };
-
       await login(mockUserData.email, "social-auth-token", rememberMe);
-
-      console.log(`Login: ${provider} login successful, redirecting to:`, redirectPath);
-      window.location.href = redirectPath;
+      const targetPath = mockUserData.role === "ADMIN" ? "/dashboard" : redirectPath;
+      window.location.href = targetPath;
     } catch (error) {
-      console.error(`Login: ${provider} login error:`, error);
       setError(`${provider} login failed. Please try again.`);
     } finally {
       setSocialLoading(null);
     }
   };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
@@ -87,13 +73,11 @@ function LoginContent() {
             Sign in to your account
           </h2>
         </div>
-
         {error && (
           <div className="relative rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700">
             {error}
           </div>
         )}
-
         <div className="mt-8 space-y-6">
           <div className="grid grid-cols-1 gap-3">
             <SocialLoginButton
@@ -112,7 +96,6 @@ function LoginContent() {
               disabled={!!socialLoading}
             />
           </div>
-
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
@@ -121,7 +104,6 @@ function LoginContent() {
               <span className="bg-gray-50 px-2 text-gray-500">Or continue with email</span>
             </div>
           </div>
-
           <form onSubmit={handleSubmit}>
             <div className="-space-y-px rounded-md shadow-sm">
               <div>
@@ -151,7 +133,6 @@ function LoginContent() {
                 />
               </div>
             </div>
-
             <div className="mt-4 flex items-center justify-between">
               <div className="flex items-center">
                 <input
@@ -166,7 +147,6 @@ function LoginContent() {
                   Remember me
                 </label>
               </div>
-
               <div className="text-sm">
                 <Link
                   href="/forgot-password"
@@ -176,7 +156,6 @@ function LoginContent() {
                 </Link>
               </div>
             </div>
-
             <div>
               <button
                 type="submit"
@@ -192,10 +171,9 @@ function LoginContent() {
                     : "Sign in"}
               </button>
             </div>
-
             <div className="text-center text-sm">
               <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                Don&apos;t have an account? Sign up
+                Don't have an account? Sign up
               </Link>
             </div>
           </form>
@@ -204,7 +182,6 @@ function LoginContent() {
     </div>
   );
 }
-
 export default function LoginPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
