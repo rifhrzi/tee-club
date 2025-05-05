@@ -24,9 +24,20 @@ function LoginContent() {
   useEffect(() => {
     const redirect = searchParams.get("redirect") || "/home";
     setRedirectPath(redirect);
+    console.log("Login: Loaded with redirect path:", redirect);
+
+    console.log("Login: isAuthenticated:", isAuthenticated);
+    console.log("Login: user:", user);
+    console.log("Login: user.role:", user?.role);
+
     if (isAuthenticated && user) {
-      const targetPath = user.role === "ADMIN" ? "/dashboard" : redirect;
+      const userRole = user.role; // Assuming 'role' is part of the user object
+      const targetPath = userRole === "ADMIN" ? "/admin" : redirect;
+
+      console.log("Login: User already logged in, redirecting to:", targetPath);
       window.location.href = targetPath;
+    } else {
+      console.log("Login: User not logged in, showing login form");
     }
   }, [isAuthenticated, user, searchParams]);
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -38,7 +49,11 @@ function LoginContent() {
       const email = formData.get("email") as string;
       const password = formData.get("password") as string;
       await login(email, password, rememberMe);
-      const targetPath = user?.role === "ADMIN" ? "/dashboard" : redirectPath;
+
+      const userRole = user?.role; // Assuming 'role' is part of the user object
+      const targetPath = userRole === "ADMIN" ? "/admin" : redirectPath;
+
+      console.log("Login: Login successful, redirecting to:", targetPath);
       window.location.href = targetPath;
     } catch (error) {
       setError(error instanceof Error ? error.message : "Login failed");

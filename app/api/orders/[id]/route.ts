@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -11,7 +13,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
     }
 
     // Verify token and get user
-    const decoded = await verifyToken(token);
+    const decoded = verifyToken(token);
+    
     const user = await db.user.findUnique({
       where: { id: decoded.userId },
     });
