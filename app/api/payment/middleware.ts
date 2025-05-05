@@ -17,7 +17,7 @@ export async function withPaymentAuth(
     // If token exists, verify it and get the user
     if (token) {
       try {
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         userId = decoded.userId;
 
         // Get user from database

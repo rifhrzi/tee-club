@@ -1,49 +1,109 @@
-import jwt from "jsonwebtoken";
+import { SignJWT, jwtVerify } from "jose";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
-// Get JWT configuration from environment variables with fallbacks
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
-interface TokenPayload {
+interface DbUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  password: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface JwtPayload {
   userId: string;
-  type?: "access" | "refresh";
+  role: string;
 }
 
-export function signToken(payload: TokenPayload, type: "access" | "refresh" = "access"): string {
-  const secret = type === "access" ? JWT_SECRET : JWT_REFRESH_SECRET;
-  const expiresIn = type === "access" ? JWT_EXPIRES_IN : JWT_REFRESH_EXPIRES_IN;
+export async function generateAuthTokens(userId: string, role: string) {
+  const accessToken = await new SignJWT({ userId, role })
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("1h")
+    .sign(JWT_SECRET);
 
-  return jwt.sign({ ...payload, type }, secret, {
-    expiresIn: expiresIn as jwt.SignOptions["expiresIn"],
+  const refreshToken = await new SignJWT({ userId, role })
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("7d")
+    .sign(JWT_SECRET);
+
+  await prisma.refreshToken.create({
+    data: {
+      token: refreshToken,
+      userId,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
   });
+
+  return { accessToken, refreshToken };
 }
 
-export function verifyToken(token: string, type: "access" | "refresh" = "access"): TokenPayload {
+export async function verifyToken(token: string): Promise<JwtPayload> {
+  const { payload } = await jwtVerify(token, JWT_SECRET);
+  return payload as unknown as JwtPayload;
+}
+
+export async function verifyAuth(request: NextRequest) {
+  const token = request.headers.get("Authorization")?.split(" ")[1];
+
+  if (!token) {
+    return null;
+  }
+
   try {
-    const secret = type === "access" ? JWT_SECRET : JWT_REFRESH_SECRET;
-    const decoded = jwt.verify(token, secret) as TokenPayload;
+    const payload = await verifyToken(token);
+    const user = (await prisma.user.findUnique({
+      where: { id: payload.userId },
+    })) as DbUser | null;
 
-    // Verify that the token type matches the expected type
-    if (decoded.type !== type) {
-      throw new Error(`Invalid token type: expected ${type}, got ${decoded.type}`);
+    if (!user) {
+      return null;
     }
 
-    return decoded;
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    };
   } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      throw new Error(`${type.charAt(0).toUpperCase() + type.slice(1)} token expired`);
-    } else if (error instanceof jwt.JsonWebTokenError) {
-      throw new Error(`Invalid ${type} token`);
-    }
-    throw error;
+    return null;
   }
 }
 
-export function generateAuthTokens(userId: string) {
-  return {
-    accessToken: signToken({ userId }, "access"),
-    refreshToken: signToken({ userId }, "refresh"),
-  };
+export async function refreshAccessToken(refreshToken: string) {
+  try {
+    const payload = await verifyToken(refreshToken);
+    const token = await prisma.refreshToken.findUnique({
+      where: { token: refreshToken },
+    });
+
+    if (!token || token.expiresAt < new Date()) {
+      return null;
+    }
+
+    const user = (await prisma.user.findUnique({
+      where: { id: payload.userId },
+    })) as DbUser | null;
+
+    if (!user) {
+      return null;
+    }
+
+    const { accessToken } = await generateAuthTokens(user.id, user.role);
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    };
+  } catch (error) {
+    return null;
+  }
 }

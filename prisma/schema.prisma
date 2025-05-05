@@ -1,6 +1,3 @@
-// This is your Prisma schema file
-// Learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,6 +12,7 @@ model User {
   email         String         @unique
   password      String
   name          String
+  role          String         @default("USER")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
@@ -28,7 +26,6 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
-
   @@index([userId])
 }
 
@@ -53,7 +50,6 @@ model Variant {
   productId String
   product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
-
   @@index([productId])
 }
 
@@ -69,8 +65,7 @@ model Order {
   totalAmount     Float
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  paymentDetails  PaymentDetails?  @relation // Tambahkan relasi
-
+  paymentDetails  PaymentDetails?
   @@index([userId])
 }
 
@@ -82,7 +77,7 @@ model PaymentDetails {
   transactionId String
   status        String
   amount        Float
-  rawResponse   String   // Simpan JSON sebagai string
+  rawResponse   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -97,7 +92,6 @@ model OrderItem {
   variant   Variant? @relation(fields: [variantId], references: [id])
   quantity  Int
   price     Float
-
   @@index([orderId])
   @@index([productId])
   @@index([variantId])

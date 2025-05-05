@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     // If token exists, verify it and get the user
     if (token) {
       try {
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         user = await db.user.findUnique({
           where: { id: decoded.userId },
         });

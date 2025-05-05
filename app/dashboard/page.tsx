@@ -9,6 +9,10 @@ export default function DashboardPage() {
   const { isAuthenticated, user } = useSimpleAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
+  const result = verifyToken(localStorage.getItem("token") || "");
+  if (!result) {
+    redirect("/login");
+  }
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "ADMIN") {
