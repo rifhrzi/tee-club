@@ -1,12 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSimpleAuth } from "@/hooks/useSimpleAuth";
 
 export default function DashboardPage() {
+  const { isAuthenticated, user } = useSimpleAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== "ADMIN") {
+      router.push("/login?redirect=/dashboard");
+    }
+  }, [isAuthenticated, user, router]);
+
+  if (!isAuthenticated || user?.role !== "ADMIN") {
+    return <div>Redirecting...</div>;
+  }
 
   const stats = [
     { name: "Total Pesanan", value: "24", change: "+12%" },

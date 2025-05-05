@@ -23,9 +23,16 @@ function LoginContent() {
     setRedirectPath(redirect);
     console.log("Login: Loaded with redirect path:", redirect);
 
+    console.log("Login: isAuthenticated:", isAuthenticated);
+    console.log("Login: user:", user);
+    console.log("Login: user.role:", user?.role);
+
     if (isAuthenticated && user) {
-      console.log("Login: User already logged in, redirecting to:", redirect);
-      window.location.href = redirect;
+      const userRole = user.role; // Assuming 'role' is part of the user object
+      const targetPath = userRole === "ADMIN" ? "/admin" : redirect;
+
+      console.log("Login: User already logged in, redirecting to:", targetPath);
+      window.location.href = targetPath;
     } else {
       console.log("Login: User not logged in, showing login form");
     }
@@ -44,8 +51,11 @@ function LoginContent() {
       console.log("Login: Attempting login for:", email, "Remember me:", rememberMe);
       await login(email, password, rememberMe);
 
-      console.log("Login: Login successful, redirecting too:", redirectPath);
-      window.location.href = redirectPath;
+      const userRole = user?.role; // Assuming 'role' is part of the user object
+      const targetPath = userRole === "ADMIN" ? "/admin" : redirectPath;
+
+      console.log("Login: Login successful, redirecting to:", targetPath);
+      window.location.href = targetPath;
     } catch (error) {
       console.error("Login: Login error:", error);
       setError(error instanceof Error ? error.message : "Login failed");

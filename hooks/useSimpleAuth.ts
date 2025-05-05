@@ -45,10 +45,8 @@ export const useSimpleAuth = create<AuthState>()(
           const data = await response.json();
           console.log("SimpleAuth: Login successful");
 
-          // Calculate expiration time based on remember me option
-          const now = Date.now();
-          // If remember me is checked, set expiration to 30 days, otherwise 1 day
-          const expirationTime = now + (rememberMe ? 30 : 1) * 24 * 60 * 60 * 1000;
+          // Set expiration to 7 days (matching server logic)
+          const expirationTime = Date.now() + 7 * 24 * 60 * 60 * 1000;
 
           // Update auth state with user data and token
           set({
@@ -57,6 +55,17 @@ export const useSimpleAuth = create<AuthState>()(
             token: data.accessToken,
             expiresAt: expirationTime,
           });
+
+          // Update the simple-auth-storage cookie to sync with the server
+          document.cookie = `simple-auth-storage=${JSON.stringify({
+            state: {
+              isAuthenticated: true,
+              user: {
+                ...data.user,
+                role: data.user.role || "USER", // Ensure userRole is set
+              },
+            },
+          })}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`; // 7 days expiration
 
           return true;
         } catch (error) {
