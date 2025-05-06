@@ -55,7 +55,7 @@ export default function AdminLoginPage() {
 
       // Step 2: Setup localStorage
       addLog("Step 2: Setting up localStorage...");
-      
+
       const authData = {
         state: {
           isAuthenticated: true,
@@ -70,18 +70,18 @@ export default function AdminLoginPage() {
         },
         version: 1
       };
-      
-      localStorage.setItem("simple-auth-storage", JSON.stringify(authData));
+
+      localStorage.setItem("auth-storage", JSON.stringify(authData));
       addLog("localStorage setup complete!");
-      
+
       // Step 3: Redirect to admin page
       addLog("Step 3: Redirecting to admin page in 3 seconds...");
       setSuccess("Login successful! Redirecting to admin page...");
-      
+
       setTimeout(() => {
         router.push("/admin");
       }, 3000);
-      
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An error occurred";
       addLog(`Error: ${errorMessage}`);
@@ -164,7 +164,7 @@ export default function AdminLoginPage() {
               >
                 {loading ? "Processing..." : "Login as Admin"}
               </button>
-              
+
               <button
                 type="button"
                 onClick={clearLocalStorage}

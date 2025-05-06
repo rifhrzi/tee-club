@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useSimpleAuth } from "@/hooks/useSimpleAuth";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminSignupPage() {
   const router = useRouter();
-  const { isAuthenticated, user } = useSimpleAuth();
+  const { isAuthenticated, user } = useAuth();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");

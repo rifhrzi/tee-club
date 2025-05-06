@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSimpleAuth } from "@/hooks/useSimpleAuth";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function DashboardPage() {
-  const { isAuthenticated, user } = useSimpleAuth();
+  const { isAuthenticated, user } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
 

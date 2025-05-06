@@ -70,7 +70,7 @@ export default function AdminSetupSimplePage() {
         version: 1
       };
       
-      localStorage.setItem("simple-auth-storage", JSON.stringify(authData));
+      localStorage.setItem("storage", JSON.stringify(authData));
       addLog("Auth data created in localStorage");
       
       // Step 3: Redirect to admin page

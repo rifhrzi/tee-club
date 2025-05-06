@@ -34,16 +34,16 @@ export async function GET(request: Request) {
     if (!userId) {
       console.log("API: /api/orders - Trying cookie-based authentication");
       const cookieStore = cookies();
-      const simpleAuthCookie = cookieStore.get("simple-auth-storage");
+      const authCookie = cookieStore.get("auth-storage");
 
-      if (!simpleAuthCookie) {
+      if (!authCookie) {
         console.log("API: /api/orders - No auth cookie found, returning 401");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
       // Parse the cookie value
       try {
-        const cookieValue = JSON.parse(simpleAuthCookie.value);
+        const cookieValue = JSON.parse(authCookie.value);
         const state = cookieValue.state || {};
 
         if (state.user && state.isAuthenticated) {

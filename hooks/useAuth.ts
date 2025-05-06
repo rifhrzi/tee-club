@@ -1,181 +1,138 @@
-import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-interface AuthState {
-  accessToken: string | null
-  refreshToken: string | null
-  user: {
-    id: string
-    email: string
-    name: string
-  } | null
-  login: (email: string, password: string) => Promise<void>
-  logout: () => void
-  refreshTokens: () => Promise<void>
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: "ADMIN" | "USER";
 }
 
-// Helper to check if we're in a browser environment
-const isBrowser = typeof window !== 'undefined';
-
-// Helper to safely parse JSON with a fallback
-const safelyParseJSON = (json: string | null, fallback = {}) => {
-  if (!json) return fallback;
-  try {
-    return JSON.parse(json);
-  } catch (e) {
-    console.error('Failed to parse JSON:', e);
-    return fallback;
-  }
-};
+interface AuthState {
+  isAuthenticated: boolean;
+  user: User | null;
+  token: string | null;
+  expiresAt: number | null;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<boolean>;
+  logout: () => void;
+  isSessionExpired: () => boolean;
+}
 
 export const useAuth = create<AuthState>()(
   persist(
     (set, get) => ({
-      accessToken: null,
-      refreshToken: null,
+      isAuthenticated: false,
       user: null,
+      token: null,
+      expiresAt: null,
 
-      login: async (email: string, password: string) => {
+      login: async (email: string, password: string, rememberMe = false) => {
         try {
-          console.log('Auth: Attempting login for:', email);
+          console.log("Auth: Attempting login for:", email, "Remember me:", rememberMe);
 
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),
           });
 
           if (!response.ok) {
             const error = await response.json();
-            console.error('Auth: Login failed:', error);
-            throw new Error(error.error || 'Login failed');
+            console.error("Auth: Login failed:", error);
+            throw new Error(error.error || "Login failed");
           }
 
           const data = await response.json();
-          console.log('Auth: Login successful');
+          console.log("Auth: Login successful");
+          console.log("Auth: User data received:", data.user);
 
-          // Update the auth state
+          // Set expiration to 7 days (matching server logic)
+          const expirationTime = Date.now() + 7 * 24 * 60 * 60 * 1000;
+
+          // Update auth state with user data and token
           set({
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
+            isAuthenticated: true,
             user: data.user,
+            token: data.accessToken,
+            expiresAt: expirationTime,
           });
 
-          // Set a flag in localStorage to indicate successful login
-          if (isBrowser) {
-            localStorage.setItem('auth_timestamp', Date.now().toString());
-            // Also store the tokens in localStorage as a backup
-            localStorage.setItem('auth_tokens', JSON.stringify({
-              accessToken: data.accessToken,
-              refreshToken: data.refreshToken,
-            }));
-          }
+          // Update the auth-storage cookie to sync with the server
+          document.cookie = `auth-storage=${JSON.stringify({
+            state: {
+              isAuthenticated: true,
+              user: {
+                ...data.user,
+                role: data.user.role || "USER", // Ensure userRole is set
+              },
+            },
+          })}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`; // 7 days expiration
 
-          return data;
+          return true;
         } catch (error) {
-          console.error('Auth: Login error:', error);
-          set({ accessToken: null, refreshToken: null, user: null });
+          console.error("Auth: Login error:", error);
+          set({ isAuthenticated: false, user: null, token: null, expiresAt: null });
           throw error;
         }
       },
 
       logout: () => {
-        console.log('Auth: Logging out');
-        set({ accessToken: null, refreshToken: null, user: null });
+        console.log("Auth: Logging out");
 
-        // Clear backup tokens from localStorage
-        if (isBrowser) {
-          localStorage.removeItem('auth_timestamp');
-          localStorage.removeItem('auth_tokens');
+        // Clear the state
+        set({ isAuthenticated: false, user: null, token: null, expiresAt: null });
+
+        // Clear the cookie by setting it to expire in the past
+        if (typeof document !== 'undefined') {
+          // Clear the cookie in multiple ways to ensure it's removed
+          document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+          document.cookie = "auth-storage=; path=/; max-age=0; SameSite=Lax";
+
+          // Also clear localStorage
+          localStorage.removeItem('auth-storage');
+
+          // For backward compatibility, also clear the old cookie and localStorage
+          document.cookie = "simple-auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+          document.cookie = "simple-auth-storage=; path=/; max-age=0; SameSite=Lax";
+          localStorage.removeItem('simple-auth-storage');
+
+          console.log("Auth: Cookie and localStorage cleared");
+
+          // Force a page reload to ensure all components update
+          setTimeout(() => {
+            console.log("Auth: Reloading page to refresh state");
+            window.location.href = '/';
+          }, 100);
         }
       },
 
-      refreshTokens: async () => {
-        // First try to get the refresh token from the store
-        let { refreshToken } = get();
+      isSessionExpired: () => {
+        const { expiresAt } = get();
+        if (!expiresAt) return false;
 
-        // If no refresh token in the store, try to get it from localStorage
-        if (!refreshToken && isBrowser) {
-          const storedTokens = safelyParseJSON(localStorage.getItem('auth_tokens'), {});
-          refreshToken = storedTokens.refreshToken || null;
+        const now = Date.now();
+        const isExpired = now > expiresAt;
+
+        if (isExpired) {
+          console.log("Auth: Session has expired");
+          // Auto logout if session is expired
+          set({ isAuthenticated: false, user: null, token: null, expiresAt: null });
         }
 
-        if (!refreshToken) {
-          console.log('Auth: No refresh token available');
-          return;
-        }
-
-        try {
-          console.log('Auth: Attempting to refresh tokens...');
-          const response = await fetch('/api/auth/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken }),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Auth: Token refresh failed:', errorData);
-            throw new Error(errorData.error || 'Failed to refresh token');
-          }
-
-          const data = await response.json();
-          console.log('Auth: Tokens refreshed successfully');
-
-          // Update the auth state
-          set({
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-            user: data.user || get().user, // Keep the user if not returned
-          });
-
-          // Update the backup tokens in localStorage
-          if (isBrowser) {
-            localStorage.setItem('auth_tokens', JSON.stringify({
-              accessToken: data.accessToken,
-              refreshToken: data.refreshToken,
-            }));
-          }
-
-          return data;
-        } catch (error) {
-          console.error('Auth: Token refresh error:', error);
-
-          // Only clear auth state for certain errors
-          if (error instanceof Error &&
-              (error.message.includes('Invalid token') ||
-               error.message.includes('expired'))) {
-            console.log('Auth: Clearing auth state due to invalid/expired token');
-            set({ accessToken: null, refreshToken: null, user: null });
-
-            // Clear backup tokens from localStorage
-            if (isBrowser) {
-              localStorage.removeItem('auth_timestamp');
-              localStorage.removeItem('auth_tokens');
-            }
-          }
-
-          throw error;
-        }
+        return isExpired;
       },
     }),
     {
-      name: 'auth-storage',
-      storage: createJSONStorage(() => {
-        // Only use localStorage in browser environment
-        return isBrowser ? localStorage : {
-          getItem: () => null,
-          setItem: () => {},
-          removeItem: () => {}
-        }
-      }),
+      name: "auth-storage", // Changed from simple-auth-storage for consistency
       partialize: (state) => ({
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
         user: state.user,
+        token: state.token,
+        expiresAt: state.expiresAt,
       }),
-      // Only rehydrate on client side
-      skipHydration: true,
     }
   )
-)
+);
+
+// For backward compatibility
+export const useSimpleAuth = useAuth;

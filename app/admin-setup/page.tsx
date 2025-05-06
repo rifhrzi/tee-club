@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSimpleAuth } from "@/hooks/useSimpleAuth";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminSetupPage() {
   const router = useRouter();
-  const { login } = useSimpleAuth();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -65,12 +65,12 @@ export default function AdminSetupPage() {
       setSuccess("Login successful! Redirecting to admin page...");
       
       // Manually set role to ADMIN in localStorage
-      const authData = localStorage.getItem("simple-auth-storage");
+      const authData = localStorage.getItem("auth-storage");
       if (authData) {
         const parsedData = JSON.parse(authData);
         if (parsedData.state && parsedData.state.user) {
           parsedData.state.user.role = "ADMIN";
-          localStorage.setItem("simple-auth-storage", JSON.stringify(parsedData));
+          localStorage.setItem("auth-storage", JSON.stringify(parsedData));
         }
       }
       

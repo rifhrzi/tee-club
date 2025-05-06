@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from "@/hooks/useAuth";
 import Link from 'next/link';
 import { formatPrice } from '@/constants';
 
@@ -70,7 +70,7 @@ interface Order {
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { user, accessToken } = useAuth();
+  const { user, token: accessToken } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -334,7 +334,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                   </button>
                 </Link>
               )}
-              <button 
+              <button
                 onClick={() => window.print()}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
               >

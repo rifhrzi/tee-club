@@ -12,7 +12,7 @@ const Layout = dynamic(() => import('@/components/Layout'), { ssr: false })
 export default function Checkout() {
   const router = useRouter()
   const cart = useCartStore(state => state.cart)
-  const { accessToken, user } = useAuth()
+  const { token: accessToken, user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 

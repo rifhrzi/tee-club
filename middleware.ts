@@ -18,26 +18,35 @@ export function middleware(request: NextRequest) {
   const isAuthPath = AUTH_PATHS.some((path) => pathname.startsWith(path));
   const isAdminPath = ADMIN_PATHS.some((path) => pathname.startsWith(path));
 
-  // Check if user is authenticated using the simple auth cookie
-  const simpleAuthCookie = request.cookies.get("simple-auth-storage")?.value;
+  // Check if user is authenticated using the auth cookie
+  const authCookie = request.cookies.get("auth-storage")?.value || request.cookies.get("simple-auth-storage")?.value; // Check both new and old cookie names for backward compatibility
   let isAuthenticated = false;
   let userRole = null;
 
-  if (simpleAuthCookie) {
+  if (authCookie) {
     try {
-      const parsedStorage = JSON.parse(simpleAuthCookie);
+      const parsedStorage = JSON.parse(authCookie);
       const state = parsedStorage.state || {};
-      isAuthenticated = !!state.isAuthenticated;
-      userRole = state.user?.role || null;
+
+      // Validate that we have all required fields for authentication
+      if (state.isAuthenticated && state.user && state.user.id && state.user.email) {
+        isAuthenticated = true;
+        userRole = state.user.role || null;
+        console.log("Middleware: Valid authentication data found");
+      } else {
+        console.log("Middleware: Invalid or incomplete authentication data");
+        isAuthenticated = false;
+      }
     } catch (error) {
-      console.error("Error parsing simple auth storage:", error);
+      console.error("Error parsing auth storage:", error);
+      isAuthenticated = false;
     }
   }
 
   userRole = userRole || "USER"; // Fallback to USER if userRole is undefined
 
   console.log("Middleware: Checking authentication state");
-  console.log("Middleware: simple-auth-storage cookie:", simpleAuthCookie);
+  console.log("Middleware: auth cookie:", authCookie);
   console.log("Middleware: isAuthenticated:", isAuthenticated);
   console.log("Middleware: userRole:", userRole);
 

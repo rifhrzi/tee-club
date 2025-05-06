@@ -50,7 +50,7 @@ export default function SignUpPage() {
       alert('Account created successfully! Please login with your credentials.');
       
       // Redirect to login page
-      router.push('/simple-login');
+      router.push('/login');
 
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
@@ -76,7 +76,7 @@ export default function SignUpPage() {
           <p className="mt-2 text-center text-sm text-gray-600">
             Already have an account?{" "}
             <Link
-              href="/simple-login"
+              href="/login"
               className="font-medium text-indigo-600 transition-colors duration-200 hover:text-indigo-500"
             >
               Sign in here

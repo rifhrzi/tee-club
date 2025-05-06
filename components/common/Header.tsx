@@ -4,11 +4,11 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { MobileMenu } from "./MobileMenu";
 import { SITE_CONFIG, NAVIGATION } from "../../constants";
-import { useSimpleAuth } from "@/hooks/useSimpleAuth";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useSimpleAuth();
+  const { user, isAuthenticated, logout } = useAuth();
 
   // Debug: Log authentication state
   useEffect(() => {
@@ -45,19 +45,40 @@ export const Header = () => {
                 <Link
                   href="/login"
                   className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                  onClick={(e) => {
+                    console.log('Header: Login button clicked');
+                    // No need to prevent default, let the Link handle navigation
+                  }}
                 >
                   Sign In
                 </Link>
               ) : (
                 <div className="flex items-center space-x-4">
                   <Link
-                    href="/simple-orders"
+                    href="/orders"
                     className="text-gray-700 transition-colors hover:text-gray-900"
                   >
                     My Orders
                   </Link>
                   <button
-                    onClick={() => logout()}
+                    onClick={() => {
+                      console.log('Header: Sign Out button clicked');
+
+                      // Clear cookies manually before calling logout
+                      document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+                      document.cookie = "auth-storage=; path=/; max-age=0; SameSite=Lax";
+
+                      // Also clear localStorage
+                      localStorage.removeItem('auth-storage');
+
+                      // For backward compatibility, also clear the old cookie and localStorage
+                      document.cookie = "simple-auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+                      document.cookie = "simple-auth-storage=; path=/; max-age=0; SameSite=Lax";
+                      localStorage.removeItem('simple-auth-storage');
+
+                      // Call the logout function
+                      logout();
+                    }}
                     className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-300"
                   >
                     Sign Out

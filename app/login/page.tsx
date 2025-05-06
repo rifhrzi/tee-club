@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useSimpleAuth } from "@/hooks/useSimpleAuth";
+import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 import SocialLoginButton from "@/components/SocialLoginButton";
 import { Suspense } from "react";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic"; // Force dynamic rendering
 
 function LoginContent() {
   const searchParams = useSearchParams();
-  const { login, isAuthenticated, user } = useSimpleAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -214,9 +214,18 @@ function LoginContent() {
             </div>
 
             <div className="text-center text-sm">
-              <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                Don&apos;t have an account? Sign up
-              </Link>
+              <div className="space-y-2">
+                <div>
+                  <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+                    Don&apos;t have an account? Sign up
+                  </Link>
+                </div>
+                <div>
+                  <Link href="/admin/login" className="font-medium text-blue-600 hover:text-blue-500">
+                    Admin login
+                  </Link>
+                </div>
+              </div>
             </div>
           </form>
         </div>

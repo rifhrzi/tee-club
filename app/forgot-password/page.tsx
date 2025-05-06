@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
             <p>If an account exists with the email <strong>{email}</strong>, you will receive a password reset link shortly.</p>
             <p className="mt-4">
-              <Link href="/simple-login" className="font-medium text-blue-600 hover:text-blue-500">
+              <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
                 Return to login
               </Link>
             </p>
@@ -79,7 +79,7 @@ export default function ForgotPasswordPage() {
 
             <div className="flex items-center justify-between">
               <div className="text-sm">
-                <Link href="/simple-login" className="font-medium text-blue-600 hover:text-blue-500">
+                <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
                   Back to login
                 </Link>
               </div>

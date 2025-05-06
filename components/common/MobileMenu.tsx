@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { NAVIGATION } from '../../constants';
-import { useSimpleAuth } from '@/hooks/useSimpleAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 interface MobileMenuProps {
     isOpen: boolean;
@@ -13,7 +13,7 @@ interface MobileMenuProps {
 
 export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, user: propUser, logout: propLogout }) => {
     // Use props if provided, otherwise use the hook
-    const authHook = useSimpleAuth();
+    const authHook = useAuth();
     const user = propUser || authHook.user;
     const logout = propLogout || authHook.logout;
     const isAuthenticated = authHook.isAuthenticated;
@@ -43,18 +43,48 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, user: propUser, 
                     </Link>
                 ))}
                 {!isAuthenticated ? (
-                    <Link href="/simple-login" className="block w-full">
+                    <Link
+                        href="/login"
+                        className="block w-full"
+                        onClick={() => {
+                            console.log('MobileMenu: Login button clicked');
+                            // Force navigation to login page
+                            window.location.href = '/login';
+                        }}
+                    >
                         <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors w-full">
                             Sign In
                         </button>
                     </Link>
                 ) : (
                     <>
-                        <Link href="/simple-orders" className="text-gray-700 hover:text-gray-900 transition-colors">
+                        <Link href="/orders" className="text-gray-700 hover:text-gray-900 transition-colors">
                             My Orders
                         </Link>
                         <button
-                            onClick={() => logout()}
+                            onClick={() => {
+                                console.log('MobileMenu: Sign Out button clicked');
+
+                                // Clear cookies manually before calling logout
+                                document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+                                document.cookie = "auth-storage=; path=/; max-age=0; SameSite=Lax";
+
+                                // Also clear localStorage
+                                localStorage.removeItem('auth-storage');
+
+                                // For backward compatibility, also clear the old cookie and localStorage
+                                document.cookie = "simple-auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+                                document.cookie = "simple-auth-storage=; path=/; max-age=0; SameSite=Lax";
+                                localStorage.removeItem('simple-auth-storage');
+
+                                // Call the logout function
+                                logout();
+
+                                // Force reload after a short delay
+                                setTimeout(() => {
+                                    window.location.href = '/';
+                                }, 100);
+                            }}
                             className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors w-full"
                         >
                             Sign Out
