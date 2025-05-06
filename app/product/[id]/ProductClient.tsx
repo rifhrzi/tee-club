@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { formatPrice } from "@/constants";
 import Link from "next/link";
@@ -31,10 +31,23 @@ interface Product {
 export default function ProductClient({ product }: { product: Product | null }) {
   const router = useRouter();
   const addToCart = useCartStore((state) => state.addToCart);
+  const initialized = useCartStore((state) => state.initialized);
+  const initializeStore = useCartStore((state) => state.initializeStore);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Set hydrated state and initialize store once the component mounts
+  useEffect(() => {
+    setIsHydrated(true);
+
+    // Initialize the store if it hasn't been initialized yet
+    if (!initialized) {
+      initializeStore();
+    }
+  }, [initialized, initializeStore]);
 
   if (!product) {
     return (

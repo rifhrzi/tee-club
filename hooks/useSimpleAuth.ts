@@ -44,6 +44,7 @@ export const useSimpleAuth = create<AuthState>()(
 
           const data = await response.json();
           console.log("SimpleAuth: Login successful");
+          console.log("SimpleAuth: User data received:", data.user);
 
           // Set expiration to 7 days (matching server logic)
           const expirationTime = Date.now() + 7 * 24 * 60 * 60 * 1000;

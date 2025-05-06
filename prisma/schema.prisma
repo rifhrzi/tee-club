@@ -15,6 +15,7 @@ model User {
   email         String         @unique
   password      String
   name          String
+  role          UserRole       @default(USER)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
@@ -128,4 +129,9 @@ enum PaymentMethod {
   bank_transfer
   ewallet
   cod
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }

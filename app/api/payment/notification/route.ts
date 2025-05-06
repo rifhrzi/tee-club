@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { reduceProductStock } from "@/lib/services/products";
 
 export async function POST(request: Request) {
   try {
@@ -16,9 +17,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Order ID is required" }, { status: 400 });
     }
 
-    // Find the order in the database
+    // Find the order in the database with its items
     const order = await db.order.findUnique({
       where: { id: orderId },
+      include: {
+        items: true
+      }
     });
 
     if (!order) {
@@ -65,6 +69,27 @@ export async function POST(request: Request) {
     });
 
     console.log(`Updated order ${orderId} status to ${newStatus}`);
+
+    // If payment is successful, reduce stock for each item
+    if (newStatus === "PAID") {
+      console.log(`Order ${orderId} is paid, reducing stock for ${order.items.length} items`);
+
+      try {
+        // Process each order item
+        for (const item of order.items) {
+          await reduceProductStock(
+            item.productId,
+            item.quantity,
+            item.variantId || undefined
+          );
+        }
+        console.log(`Successfully reduced stock for all items in order ${orderId}`);
+      } catch (stockError) {
+        console.error(`Error reducing stock for order ${orderId}:`, stockError);
+        // We don't want to fail the whole request if stock reduction fails
+        // Just log the error and continue
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
