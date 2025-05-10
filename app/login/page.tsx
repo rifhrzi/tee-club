@@ -1,243 +1,179 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
-import Link from "next/link";
-import SocialLoginButton from "@/components/SocialLoginButton";
-import { Suspense } from "react";
+import { useState, useEffect } from 'react';
+import useAuth from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { clearStoredRedirectPath } from '@/utils/authRedirect';
 
-export const dynamic = "force-dynamic"; // Force dynamic rendering
+function UserLogin() {
+  const { login, isAuthenticated } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
+  const router = useRouter();
 
-function LoginContent() {
-  const searchParams = useSearchParams();
-  const { login, isAuthenticated, user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [redirectPath, setRedirectPath] = useState("/");
-  const [rememberMe, setRememberMe] = useState(false);
-
+  // Check for redirect path on component mount
   useEffect(() => {
-    const redirect = searchParams.get("redirect") || "/";
-    const accessDenied = searchParams.get("access_denied") === "true";
+    const storedRedirect = localStorage.getItem('login_redirect');
+    if (storedRedirect) {
+      setRedirectPath(storedRedirect);
+    }
+  }, []);
 
-    setRedirectPath(redirect);
-    console.log("Login: Loaded with redirect path:", redirect);
+  // Clear any previous errors when inputs change
+  useEffect(() => {
+    if (error) setError('');
+  }, [email, password]);
 
-    // Check for access denied parameter
-    if (accessDenied) {
-      console.log("Login: Access denied parameter detected");
-      setError("You don't have permission to access the admin area");
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Basic validation
+    if (!email || !password) {
+      setError('Email and password are required');
       return;
     }
 
-    // Check if user is authenticated
-    if (isAuthenticated && user) {
-      // Check if trying to access admin page but user is not admin
-      if (redirect.startsWith("/admin") && user.role !== "ADMIN") {
-        console.log("Login: User is not admin, showing error message");
-        setError("You don't have permission to access the admin area");
+    setIsLoading(true);
+    setError('');
+
+    try {
+      console.log('Login page: Attempting to log in with:', email);
+
+      // Add a small delay to show loading state
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await login(email, password);
+      console.log('Login page: Login successful, redirecting...');
+
+      // Show success message before redirecting
+      setError('');
+
+      // Clear any stored redirect paths
+      const redirectTo = redirectPath || '/';
+      localStorage.removeItem('login_redirect');
+      clearStoredRedirectPath();
+
+      // Redirect after a short delay
+      setTimeout(() => {
+        router.push(redirectTo);
+      }, 500);
+
+    } catch (error) {
+      console.error('Login page: Login error:', error);
+
+      if (error instanceof Error) {
+        // Extract specific error message if available
+        const errorMessage = error.message || 'Login failed. Please check your credentials.';
+
+        if (errorMessage.includes('Invalid email or password')) {
+          setError('The email or password you entered is incorrect. Please try again.');
+        } else if (errorMessage.includes('Too many login attempts')) {
+          setError('Too many login attempts. Please try again later.');
+        } else {
+          setError(errorMessage);
+        }
       } else {
-        // User is authenticated and has proper permissions
-        console.log("Login: User already logged in, redirecting to:", redirect);
-        window.location.href = redirect;
+        setError('Login failed. Please check your credentials.');
       }
-    } else {
-      console.log("Login: User not logged in, showing login form");
-    }
-  }, [isAuthenticated, user, searchParams]);
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      const formData = new FormData(e.currentTarget);
-      const email = formData.get("email") as string;
-      const password = formData.get("password") as string;
-
-      console.log("Login: Attempting login for:", email, "Remember me:", rememberMe);
-      await login(email, password, rememberMe);
-
-      const userRole = user?.role; // Assuming 'role' is part of the user object
-      const targetPath = userRole === "ADMIN" ? "/admin" : redirectPath;
-
-      console.log("Login: Login successful, redirecting to:", targetPath);
-      window.location.href = targetPath;
-    } catch (error) {
-      console.error("Login: Login error:", error);
-      setError(error instanceof Error ? error.message : "Login failed");
-      setLoading(false);
-    }
-  };
-
-  const handleSocialLogin = async (provider: "google" | "facebook" | "github") => {
-    try {
-      setError("");
-      setSocialLoading(provider);
-
-      console.log(`Login: Attempting ${provider} login`);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      const mockUserData = {
-        id: "123456",
-        email: `user@${provider}.com`,
-        name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} User`,
-      };
-
-      await login(mockUserData.email, "social-auth-token", rememberMe);
-
-      console.log(`Login: ${provider} login successful, redirecting to:`, redirectPath);
-      window.location.href = redirectPath;
-    } catch (error) {
-      console.error(`Login: ${provider} login error:`, error);
-      setError(`${provider} login failed. Please try again.`);
     } finally {
-      setSocialLoading(null);
+      setIsLoading(false);
     }
   };
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('Login page: User already authenticated, redirecting...');
+
+      // Check if there's a redirect in the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlRedirect = urlParams.get('redirect');
+      const finalRedirect = urlRedirect || redirectPath || '/';
+
+      // Redirect to the appropriate path
+      router.push(finalRedirect);
+    }
+  }, [isAuthenticated, router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Sign in to your account
           </h2>
         </div>
 
-        {error && (
-          <div className="relative rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700">
-            {error}
-          </div>
-        )}
-
-        <div className="mt-8 space-y-6">
-          <div className="grid grid-cols-1 gap-3">
-            <SocialLoginButton
-              provider="google"
-              onClick={() => handleSocialLogin("google")}
-              disabled={!!socialLoading}
-            />
-            <SocialLoginButton
-              provider="facebook"
-              onClick={() => handleSocialLogin("facebook")}
-              disabled={!!socialLoading}
-            />
-            <SocialLoginButton
-              provider="github"
-              onClick={() => handleSocialLogin("github")}
-              disabled={!!socialLoading}
-            />
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-gray-50 px-2 text-gray-500">Or continue with email</span>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            <div className="-space-y-px rounded-md shadow-sm">
-              <div>
-                <label htmlFor="email" className="sr-only">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  className="relative block w-full appearance-none rounded-none rounded-t-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  placeholder="Email address"
-                />
-              </div>
-              <div>
-                <label htmlFor="password" className="sr-only">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  className="relative block w-full appearance-none rounded-none rounded-b-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  placeholder="Password"
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Remember me
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <Link
-                  href="/forgot-password"
-                  className="font-medium text-blue-600 hover:text-blue-500"
-                >
-                  Forgot your password?
-                </Link>
-              </div>
-            </div>
-
+        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+          <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <button
-                type="submit"
-                disabled={loading || !!socialLoading}
-                className={`group relative flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  loading || socialLoading ? "cursor-not-allowed opacity-50" : ""
-                }`}
-              >
-                {loading
-                  ? "Signing in..."
-                  : socialLoading
-                    ? `Signing in with ${socialLoading}...`
-                    : "Sign in"}
-              </button>
+              <label htmlFor="email-address" className="sr-only">Email address</label>
+              <input
+                id="email-address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
+            <div>
+              <label htmlFor="password" className="sr-only">Password</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
 
-            <div className="text-center text-sm">
-              <div className="space-y-2">
-                <div>
-                  <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                    Don&apos;t have an account? Sign up
-                  </Link>
-                </div>
-                <div>
-                  <Link href="/admin/login" className="font-medium text-blue-600 hover:text-blue-500">
-                    Admin login
-                  </Link>
+          {error && (
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="flex">
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">{error}</h3>
                 </div>
               </div>
             </div>
-          </form>
-        </div>
+          )}
+
+          <div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+                isLoading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            >
+              {isLoading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </div>
+
+          <div className="text-sm text-center">
+            <p>
+              Don't have an account?{' '}
+              <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
+                Sign up
+              </Link>
+            </p>
+          </div>
+        </form>
       </div>
     </div>
   );
 }
 
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <LoginContent />
-    </Suspense>
-  );
-}
+export default UserLogin;

@@ -10,9 +10,15 @@ export async function GET(request: Request) {
     const orderId = url.searchParams.get("orderId");
     const email = url.searchParams.get("email");
 
+    console.log("Guest API: Request parameters:", { orderId, email });
+
     // Validate input
     if (!orderId && !email) {
-      return NextResponse.json({ error: "Order ID or email is required" }, { status: 400 });
+      console.log("Guest API: Missing required parameters");
+      return NextResponse.json({
+        error: "Order ID or email is required",
+        message: "Please provide either an order ID or email to look up your order"
+      }, { status: 400 });
     }
 
     // Build the query
@@ -20,10 +26,11 @@ export async function GET(request: Request) {
 
     if (orderId) {
       // If we have an order ID, use it directly
+      console.log("Guest API: Searching by order ID:", orderId);
       whereClause.id = orderId;
     } else if (email) {
       // If we only have an email, search by shipping details
-      // Since ShippingDetails is a 1:1 relation, we need to use a different approach
+      console.log("Guest API: Searching by email:", email);
       whereClause = {
         shippingDetails: {
           email,

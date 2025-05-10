@@ -1,138 +1,175 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface User {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "USER";
+  role?: string;
 }
 
 interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
   token: string | null;
-  expiresAt: number | null;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<boolean>;
+  refreshToken: string | null;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isSessionExpired: () => boolean;
 }
 
-export const useAuth = create<AuthState>()(
+interface LoginResponse {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+}
+
+const useAuth = create<AuthState>()(
   persist(
     (set, get) => ({
       isAuthenticated: false,
       user: null,
       token: null,
-      expiresAt: null,
-
-      login: async (email: string, password: string, rememberMe = false) => {
+      refreshToken: null,
+      login: async (email: string, password: string) => {
         try {
-          console.log("Auth: Attempting login for:", email, "Remember me:", rememberMe);
+          console.log('Attempting login with:', { email });
 
-          const response = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
           });
 
           if (!response.ok) {
-            const error = await response.json();
-            console.error("Auth: Login failed:", error);
-            throw new Error(error.error || "Login failed");
+            const errorData = await response.json();
+            console.error('Login response error:', errorData);
+            throw new Error(errorData.error || 'Login failed');
           }
 
-          const data = await response.json();
-          console.log("Auth: Login successful");
-          console.log("Auth: User data received:", data.user);
+          const data: LoginResponse = await response.json();
+          console.log('Login successful, received data:', {
+            user: data.user,
+            hasAccessToken: !!data.accessToken,
+            hasRefreshToken: !!data.refreshToken
+          });
 
-          // Set expiration to 7 days (matching server logic)
-          const expirationTime = Date.now() + 7 * 24 * 60 * 60 * 1000;
-
-          // Update auth state with user data and token
+          // Set the state
           set({
             isAuthenticated: true,
             user: data.user,
             token: data.accessToken,
-            expiresAt: expirationTime,
+            refreshToken: data.refreshToken,
           });
 
-          // Update the auth-storage cookie to sync with the server
-          document.cookie = `auth-storage=${JSON.stringify({
-            state: {
-              isAuthenticated: true,
-              user: {
-                ...data.user,
-                role: data.user.role || "USER", // Ensure userRole is set
-              },
-            },
-          })}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`; // 7 days expiration
+          // Also set cookies directly for middleware access
+          if (typeof document !== 'undefined') {
+            // Store token in a cookie that middleware can access
+            const tokenCookie = `auth_token=${data.accessToken}; path=/; max-age=604800; SameSite=Lax`;
+            document.cookie = tokenCookie;
 
-          return true;
+            // Store user info in a cookie
+            const userInfo = JSON.stringify({
+              id: data.user.id,
+              email: data.user.email,
+              role: data.user.role || 'USER'
+            });
+            const userCookie = `auth_user=${encodeURIComponent(userInfo)}; path=/; max-age=604800; SameSite=Lax`;
+            document.cookie = userCookie;
+
+            console.log('Auth: Set direct auth cookies for middleware access');
+          }
         } catch (error) {
-          console.error("Auth: Login error:", error);
-          set({ isAuthenticated: false, user: null, token: null, expiresAt: null });
+          console.error('Login error:', error);
           throw error;
         }
       },
-
       logout: () => {
-        console.log("Auth: Logging out");
-
-        // Clear the state
-        set({ isAuthenticated: false, user: null, token: null, expiresAt: null });
-
-        // Clear the cookie by setting it to expire in the past
+        // Clear all auth-related cookies and localStorage
         if (typeof document !== 'undefined') {
-          // Clear the cookie in multiple ways to ensure it's removed
-          document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-          document.cookie = "auth-storage=; path=/; max-age=0; SameSite=Lax";
+          // Clear all possible cookie variations
+          const cookiesToClear = [
+            "auth-storage", "auth_storage", "simple-auth-storage",
+            "auth_token", "auth_user", "debug-token"
+          ];
 
-          // Also clear localStorage
+          cookiesToClear.forEach(name => {
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+            document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+          });
+
+          // Clear localStorage
           localStorage.removeItem('auth-storage');
-
-          // For backward compatibility, also clear the old cookie and localStorage
-          document.cookie = "simple-auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-          document.cookie = "simple-auth-storage=; path=/; max-age=0; SameSite=Lax";
+          localStorage.removeItem('auth_storage');
           localStorage.removeItem('simple-auth-storage');
 
-          console.log("Auth: Cookie and localStorage cleared");
-
-          // Force a page reload to ensure all components update
-          setTimeout(() => {
-            console.log("Auth: Reloading page to refresh state");
-            window.location.href = '/';
-          }, 100);
+          console.log('Auth: Cleared all auth cookies and localStorage');
         }
-      },
 
+        set({
+          isAuthenticated: false,
+          user: null,
+          token: null,
+          refreshToken: null
+        });
+      },
       isSessionExpired: () => {
-        const { expiresAt } = get();
-        if (!expiresAt) return false;
+        const { token } = get();
+        if (!token) return true;
 
-        const now = Date.now();
-        const isExpired = now > expiresAt;
+        try {
+          // Simple check - in a real app you'd verify the token
+          // This just checks if there's a token that looks valid
+          const parts = token.split('.');
+          if (parts.length !== 3) return true;
 
-        if (isExpired) {
-          console.log("Auth: Session has expired");
-          // Auto logout if session is expired
-          set({ isAuthenticated: false, user: null, token: null, expiresAt: null });
+          // Check expiration by decoding the payload
+          const payload = JSON.parse(atob(parts[1]));
+          const expiry = payload.exp * 1000; // Convert to milliseconds
+          return Date.now() > expiry;
+        } catch (e) {
+          console.error('Error checking token expiry:', e);
+          return true;
         }
-
-        return isExpired;
-      },
+      }
     }),
     {
-      name: "auth-storage", // Changed from simple-auth-storage for consistency
+      name: 'auth-storage',
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         user: state.user,
         token: state.token,
-        expiresAt: state.expiresAt,
+        refreshToken: state.refreshToken,
       }),
+      // Ensure cookies are properly set with appropriate options
+      storage: {
+        getItem: (name) => {
+          if (typeof window !== 'undefined') {
+            const item = localStorage.getItem(name);
+            return item ? item : null;
+          }
+          return null;
+        },
+        setItem: (name, value) => {
+          if (typeof window !== 'undefined') {
+            // Store in localStorage
+            localStorage.setItem(name, value);
+
+            // Also set as a cookie for middleware access
+            document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=2592000; SameSite=Lax`;
+            console.log('Auth: Set auth cookie and localStorage');
+          }
+        },
+        removeItem: (name) => {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem(name);
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+            console.log('Auth: Removed auth cookie and localStorage');
+          }
+        }
+      }
     }
   )
 );
 
-// For backward compatibility
-export const useSimpleAuth = useAuth;
+export default useAuth;

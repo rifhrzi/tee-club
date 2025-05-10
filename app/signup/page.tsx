@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getStoredRedirectPath, clearStoredRedirectPath } from "@/utils/authRedirect";
+
+interface ApiResponse {
+  error?: string;
+}
 
 export default function SignUpPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -15,12 +21,19 @@ export default function SignUpPage() {
     confirmPassword: "",
   });
 
+  // Check for redirect path on component mount
+  useEffect(() => {
+    const storedPath = getStoredRedirectPath();
+    if (storedPath) {
+      setRedirectPath(storedPath);
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
@@ -30,9 +43,7 @@ export default function SignUpPage() {
     try {
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
@@ -40,18 +51,24 @@ export default function SignUpPage() {
         }),
       });
 
-      const data = await response.json();
+      const data: ApiResponse = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create account');
       }
 
-      // Show success notification
-      alert('Account created successfully! Please login with your credentials.');
-      
-      // Redirect to login page
-      router.push('/login');
+      if (typeof window !== 'undefined') {
+        window.alert('Account created successfully! Please login with your credentials.');
+      }
 
+      // Store the redirect path in localStorage for the login page to use
+      if (redirectPath) {
+        localStorage.setItem('login_redirect', redirectPath);
+        // Clear the auth_redirect to avoid confusion
+        clearStoredRedirectPath();
+      }
+
+      router.push('/login');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
@@ -60,9 +77,10 @@ export default function SignUpPage() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
   };
 

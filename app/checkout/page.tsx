@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import useCartStore from '@/store/cartStore'
-import { useAuth } from '@/hooks/useAuth'
+import useAuth from '@/hooks/useAuth'
 import dynamic from 'next/dynamic'
 
 // Import Layout with dynamic import to avoid hydration issues

@@ -1,26 +1,22 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import useAuth from '@/hooks/useAuth';
 import Link from 'next/link';
 
 export default function AuthStatus() {
-  const { isAuthenticated, user, logout, isSessionExpired } = useAuth();
+  const { isAuthenticated, user, logout} = useAuth();
   const [isClient, setIsClient] = useState(false);
 
   // Only run on client side
   useEffect(() => {
     setIsClient(true);
 
-    // Check if session has expired
-    const expired = isSessionExpired();
-
     console.log('AuthStatus - Auth State:', {
       isAuthenticated,
       user: user ? user.email : 'not logged in',
-      sessionExpired: expired
     });
-  }, [isAuthenticated, user, isSessionExpired]);
+  }, [isAuthenticated, user]);
 
   // Don't render anything on server side
   if (!isClient) {

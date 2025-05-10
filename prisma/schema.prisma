@@ -18,8 +18,8 @@ model User {
   role          UserRole       @default(USER)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  refreshTokens RefreshToken[]
   orders        Order[]
+  refreshTokens RefreshToken[]
 }
 
 model RefreshToken {

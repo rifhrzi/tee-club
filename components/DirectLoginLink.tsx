@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import useAuth from "@/hooks/useAuth";
 import Link from 'next/link';
 
 interface DirectLoginLinkProps {
@@ -12,12 +12,12 @@ interface DirectLoginLinkProps {
 export default function DirectLoginLink({ children, className = '' }: DirectLoginLinkProps) {
   const { token, user } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
+
   // Check authentication status
   useEffect(() => {
     setIsAuthenticated(!!token && !!user);
   }, [token, user]);
-  
+
   // If authenticated, render children directly
   // If not authenticated, render a link to login with current page as redirect
   return isAuthenticated ? (
@@ -25,8 +25,8 @@ export default function DirectLoginLink({ children, className = '' }: DirectLogi
       {children}
     </Link>
   ) : (
-    <a 
-      href="#" 
+    <a
+      href="#"
       className={className}
       onClick={(e) => {
         e.preventDefault();
