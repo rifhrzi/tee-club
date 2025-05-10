@@ -5,8 +5,10 @@ import dynamic from "next/dynamic";
 import { formatPrice } from "@/constants";
 import Link from "next/link";
 import useCartStore from "@/store/cartStore";
+import useAuth from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import Toast from "@/components/Toast";
+import { redirectToSignup } from "@/utils/authRedirect";
 
 // Import Layout with dynamic import to avoid hydration issues
 const Layout = dynamic(() => import("@/components/Layout"), { ssr: false });
@@ -33,6 +35,7 @@ export default function ProductClient({ product }: { product: Product | null }) 
   const addToCart = useCartStore((state) => state.addToCart);
   const initialized = useCartStore((state) => state.initialized);
   const initializeStore = useCartStore((state) => state.initializeStore);
+  const { isAuthenticated } = useAuth();
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [showToast, setShowToast] = useState(false);
@@ -65,6 +68,13 @@ export default function ProductClient({ product }: { product: Product | null }) 
   }
 
   const handleAddToCart = () => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      // Redirect to signup page
+      redirectToSignup(window.location.pathname);
+      return;
+    }
+
     // Create a product object that matches the expected structure in the cart store
     const cartProduct = {
       id: product.id,
@@ -87,7 +97,8 @@ export default function ProductClient({ product }: { product: Product | null }) 
 
     // Add the product to the cart multiple times based on quantity
     for (let i = 0; i < quantity; i++) {
-      addToCart(cartProduct);
+      // Use skipAuthCheck since we already checked authentication
+      addToCart(cartProduct, { skipAuthCheck: true });
     }
 
     // Show success toast
@@ -99,6 +110,13 @@ export default function ProductClient({ product }: { product: Product | null }) 
   };
 
   const handleBuyNow = () => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      // Redirect to signup page
+      redirectToSignup('/checkout');
+      return;
+    }
+
     handleAddToCart();
     router.push("/cart");
   };

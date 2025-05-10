@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { useAuth } from '@/hooks/useAuth';
+import useAuth from '@/hooks/useAuth';
 import Link from 'next/link';
 import { formatPrice } from '@/constants';
 
@@ -67,6 +67,21 @@ export default function OrdersPage() {
   useEffect(() => {
     setIsClient(true);
 
+    // For debugging: Add token to URL if we're authenticated
+    if (typeof window !== 'undefined' && isAuthenticated) {
+      const { token } = useAuth.getState();
+      if (token) {
+        // Check if we already have a token in the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (!urlParams.has('token')) {
+          // Add token to URL for debugging
+          const newUrl = `${window.location.pathname}?token=${token}`;
+          window.history.replaceState({}, '', newUrl);
+          console.log('Orders Page - Added token to URL for debugging');
+        }
+      }
+    }
+
     // Check for pending order ID in localStorage
     if (typeof window !== 'undefined') {
       const storedOrderId = localStorage.getItem('pending_order_id');
@@ -128,7 +143,28 @@ export default function OrdersPage() {
         if (isAuthenticated) {
           // Fetch authenticated user's orders
           console.log('Orders Page - Fetching orders for authenticated user');
-          const response = await fetch('/api/orders');
+
+          // Get the token from auth state
+          const { token } = useAuth.getState();
+          console.log('Orders Page - Auth token available:', !!token);
+
+          // Add the token to the request headers
+          const headers: HeadersInit = {
+            'Content-Type': 'application/json'
+          };
+
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+            console.log('Orders Page - Adding Authorization header with token');
+          } else {
+            console.log('Orders Page - No token available, proceeding without Authorization header');
+          }
+
+          // Add credentials to include cookies
+          const response = await fetch('/api/orders', {
+            headers,
+            credentials: 'include' // This ensures cookies are sent with the request
+          });
 
           console.log('Orders Page - API response status:', response.status);
 
@@ -145,24 +181,32 @@ export default function OrdersPage() {
           // Fetch guest order by ID
           console.log('Orders Page - Fetching guest order by ID:', pendingOrderId);
 
-          // Add more debugging
           try {
+            // Use the correct endpoint format
             const response = await fetch(`/api/orders/guest?orderId=${pendingOrderId}`);
-            console.log('Orders Page - Guest API response received');
+            console.log('Orders Page - Guest API response status:', response.status);
 
-            // Log the raw response
-            const responseText = await response.text();
-            console.log('Orders Page - Guest API raw response:', responseText);
+            if (!response.ok) {
+              // Try to parse error response
+              try {
+                const errorData = await response.json();
+                console.error('Orders Page - Guest API error:', errorData);
+                throw new Error(errorData.error || 'Failed to fetch guest order');
+              } catch (parseError) {
+                console.error('Orders Page - Error parsing error response:', parseError);
+                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+              }
+            }
 
-            // Parse the response as JSON
-            const data = JSON.parse(responseText);
+            // Parse the successful response
+            const data = await response.json();
             console.log('Orders Page - Received guest orders:', data.orders ? data.orders.length : 0);
             setOrders(data.orders || []);
 
-            // Clear the pending order ID after fetching
+            // Clear the pending order ID after successful fetch
             localStorage.removeItem('pending_order_id');
             localStorage.removeItem('pending_order_data');
-          } catch (fetchError: any) { // Type assertion for the error
+          } catch (fetchError: any) {
             console.error('Orders Page - Error in guest order fetch:', fetchError);
             setError(`Failed to fetch guest order: ${fetchError.message || 'Unknown error'}`);
             setLoading(false);

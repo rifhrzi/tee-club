@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { Product, CartItem } from "./types";
 import * as ls from "../utils/localStorage";
+import { redirectToSignup } from "../utils/authRedirect";
 
 interface CartState {
   cart: CartItem[];
@@ -67,7 +68,31 @@ const useCartStore = create<CartState>()(
         ls.debugLocalStorage();
       },
 
-      addToCart: (product: Product) =>
+      addToCart: (product: Product, options: { skipAuthCheck?: boolean, currentPath?: string } = {}) => {
+        // Skip auth check if explicitly requested (for internal use only)
+        if (!options.skipAuthCheck) {
+          // Check if user is authenticated by looking for auth token in localStorage
+          const authStorage = ls.isBrowser ? localStorage.getItem('auth-storage') : null;
+          let isAuthenticated = false;
+
+          if (authStorage) {
+            try {
+              const authData = JSON.parse(authStorage);
+              isAuthenticated = authData.state?.isAuthenticated || false;
+            } catch (e) {
+              console.error('Error parsing auth storage:', e);
+            }
+          }
+
+          // If not authenticated, redirect to signup and don't add to cart
+          if (!isAuthenticated) {
+            console.log('CartStore: User not authenticated, redirecting to signup');
+            redirectToSignup(options.currentPath || (ls.isBrowser ? window.location.pathname : '/'));
+            return;
+          }
+        }
+
+        // If authenticated or skipAuthCheck is true, proceed with adding to cart
         set((state) => {
           const existingItem = state.cart.find(
             (item: CartItem) => item.product.id === product.id
@@ -82,7 +107,8 @@ const useCartStore = create<CartState>()(
             };
           }
           return { cart: [...state.cart, { product, quantity: 1 }] };
-        }),
+        });
+      },
 
       removeFromCart: (productId: string | number) =>
         set((state) => ({

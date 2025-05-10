@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getStoredRedirectPath, clearStoredRedirectPath } from "@/utils/authRedirect";
 
 interface ApiResponse {
   error?: string;
@@ -12,12 +13,21 @@ export default function SignUpPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+
+  // Check for redirect path on component mount
+  useEffect(() => {
+    const storedPath = getStoredRedirectPath();
+    if (storedPath) {
+      setRedirectPath(storedPath);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +59,13 @@ export default function SignUpPage() {
 
       if (typeof window !== 'undefined') {
         window.alert('Account created successfully! Please login with your credentials.');
+      }
+
+      // Store the redirect path in localStorage for the login page to use
+      if (redirectPath) {
+        localStorage.setItem('login_redirect', redirectPath);
+        // Clear the auth_redirect to avoid confusion
+        clearStoredRedirectPath();
       }
 
       router.push('/login');

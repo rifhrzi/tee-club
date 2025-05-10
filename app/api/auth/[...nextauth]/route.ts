@@ -4,8 +4,8 @@ import { JWT } from 'next-auth/jwt';
 import { db } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
-// Define custom User interface extending NextAuth's User
-interface User {
+// Define custom User interface
+interface CustomUser {
   id: string;
   email: string;
   name: string;
@@ -43,7 +43,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
-        } as User;
+        } as CustomUser;
       },
     }),
   ],
@@ -54,7 +54,19 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
   },
   callbacks: {
-    async jwt({ token, user }: { token: JWT; user?: User }) {
+    async jwt({
+      token,
+      user,
+      account,
+      profile,
+      isNewUser,
+    }: {
+      token: JWT;
+      user?: CustomUser | any;
+      account?: any;
+      profile?: any;
+      isNewUser?: boolean;
+    }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;

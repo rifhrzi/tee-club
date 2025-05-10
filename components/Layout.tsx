@@ -1,21 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Header, Footer } from './common';
 import AuthStatus from './AuthStatus';
-import dynamic from 'next/dynamic';
-
-// Import PaymentAuthHandler with dynamic import to avoid hydration issues
-const PaymentAuthHandler = dynamic(() => import('./payment/PaymentAuthHandler'), { ssr: false });
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [isClient, setIsClient] = useState(false);
-
-    // Set client-side flag once component mounts
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
             <Header />
@@ -26,7 +15,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </main>
             <Footer />
             <AuthStatus />
-            <PaymentAuthHandler />
         </div>
     );
 };
