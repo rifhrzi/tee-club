@@ -1,8 +1,8 @@
-import NextAuth, { NextAuthOptions, Session } from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import { JWT } from 'next-auth/jwt';
-import { db } from '@/lib/db';
-import bcrypt from 'bcryptjs';
+import NextAuth, { NextAuthOptions, Session } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { JWT } from "next-auth/jwt";
+import { db } from "@/lib/db";
+import bcrypt from "bcryptjs";
 
 // Define custom User interface
 interface CustomUser {
@@ -12,13 +12,13 @@ interface CustomUser {
   role: string;
 }
 
-export const authOptions: NextAuthOptions = {
+const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      name: 'Credentials',
+      name: "Credentials",
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials: Record<string, string> | undefined, req: any) {
         if (!credentials || !credentials.email || !credentials.password) {
@@ -48,10 +48,10 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   pages: {
-    signIn: '/login',
+    signIn: "/login",
   },
   session: {
-    strategy: 'jwt',
+    strategy: "jwt",
   },
   callbacks: {
     async jwt({

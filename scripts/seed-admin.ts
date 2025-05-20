@@ -1,25 +1,25 @@
-import { PrismaClient, UserRole } from '@prisma/client';
-import bcryptjs from 'bcryptjs'; // Ganti bcrypt dengan bcryptjs
-import { v4 as uuidv4 } from 'uuid';
+import { PrismaClient } from "@prisma/client";
+import bcryptjs from "bcryptjs"; // Ganti bcrypt dengan bcryptjs
+import { v4 as uuidv4 } from "uuid";
 
 // Inisialisasi Prisma Client
 const prisma = new PrismaClient();
 
 // Konfigurasi admin
 const adminConfig = {
-  email: 'admin@teelite.com',
-  name: 'Admin Teelite',
-  password: 'admin123', // Ganti dengan password yang lebih kuat
-  role: UserRole.ADMIN // Gunakan enum UserRole dari Prisma
+  email: "admin@teelite.com",
+  name: "Admin Teelite",
+  password: "admin123", // Ganti dengan password yang lebih kuat
+  role: "ADMIN" as any, // Use string literal and cast as any to satisfy Prisma type
 };
 
 async function main() {
-  console.log('Starting admin user seeder...');
+  console.log("Starting admin user seeder...");
 
   try {
     // Cek apakah admin sudah ada
     const existingAdmin = await prisma.user.findUnique({
-      where: { email: adminConfig.email }
+      where: { email: adminConfig.email },
     });
 
     if (existingAdmin) {
@@ -37,13 +37,13 @@ async function main() {
         email: adminConfig.email,
         name: adminConfig.name,
         password: hashedPassword,
-        role: adminConfig.role,
-      }
+        role: adminConfig.role as any, // Cast as any to satisfy Prisma type
+      },
     });
 
     console.log(`Admin user created successfully: ${admin.email}`);
   } catch (error) {
-    console.error('Error creating admin user:', error);
+    console.error("Error creating admin user:", error);
   } finally {
     await prisma.$disconnect();
   }
@@ -51,7 +51,7 @@ async function main() {
 
 // Jalankan seeder
 main()
-  .catch(e => {
+  .catch((e) => {
     console.error(e);
     process.exit(1);
   })

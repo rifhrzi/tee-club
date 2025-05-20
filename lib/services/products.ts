@@ -1,38 +1,38 @@
-import { db } from '@/lib/db'
+import { db } from "@/lib/db";
 
 export async function getProducts() {
   return db.product.findMany({
     include: {
-      variants: true
-    }
-  })
+      variants: true,
+    },
+  });
 }
 
 export async function getProductById(id: string) {
   return db.product.findUnique({
     where: { id },
     include: {
-      variants: true
-    }
-  })
+      variants: true,
+    },
+  });
 }
 
 export async function getProductStock(productId: string, variantId?: string) {
   const product = await db.product.findUnique({
     where: { id: productId },
     include: {
-      variants: true
-    }
-  })
+      variants: true,
+    },
+  });
 
-  if (!product) return 0
+  if (!product) return 0;
 
   if (variantId) {
-    const variant = product.variants.find(v => v.id === variantId)
-    return variant?.stock ?? 0
+    const variant = product.variants.find((v: { id: string; stock: number }) => v.id === variantId);
+    return variant?.stock ?? 0;
   }
 
-  return product.stock
+  return product.stock;
 }
 
 /**
@@ -42,17 +42,15 @@ export async function getProductStock(productId: string, variantId?: string) {
  * @param variantId Optional variant ID
  * @returns Updated product or variant
  */
-export async function reduceProductStock(
-  productId: string,
-  quantity: number,
-  variantId?: string
-) {
-  console.log(`Reducing stock for product ${productId}, variant ${variantId || 'none'}, quantity ${quantity}`);
+export async function reduceProductStock(productId: string, quantity: number, variantId?: string) {
+  console.log(
+    `Reducing stock for product ${productId}, variant ${variantId || "none"}, quantity ${quantity}`
+  );
 
   if (variantId) {
     // Reduce variant stock
     const variant = await db.variant.findUnique({
-      where: { id: variantId }
+      where: { id: variantId },
     });
 
     if (!variant) {
@@ -65,12 +63,12 @@ export async function reduceProductStock(
 
     return db.variant.update({
       where: { id: variantId },
-      data: { stock: newStock }
+      data: { stock: newStock },
     });
   } else {
     // Reduce product stock
     const product = await db.product.findUnique({
-      where: { id: productId }
+      where: { id: productId },
     });
 
     if (!product) {
@@ -83,7 +81,7 @@ export async function reduceProductStock(
 
     return db.product.update({
       where: { id: productId },
-      data: { stock: newStock }
+      data: { stock: newStock },
     });
   }
 }

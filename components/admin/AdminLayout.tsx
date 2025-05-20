@@ -1,28 +1,31 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useSimpleAuth } from '@/hooks/useSimpleAuth';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
 
 // Admin sidebar navigation items
 const ADMIN_NAV = [
-  { name: 'Dashboard', href: '/admin', icon: 'chart-line' },
-  { name: 'Products', href: '/admin/products', icon: 'tshirt' },
-  { name: 'Orders', href: '/admin/orders', icon: 'shopping-cart' },
-  { name: 'Users', href: '/admin/users', icon: 'users' },
-  { name: 'Settings', href: '/admin/settings', icon: 'cog' },
+  { name: "Dashboard", href: "/admin", icon: "chart-line" },
+  { name: "Products", href: "/admin/products", icon: "tshirt" },
+  { name: "Orders", href: "/admin/orders", icon: "shopping-cart" },
+  { name: "Users", href: "/admin/users", icon: "users" },
+  { name: "Settings", href: "/admin/settings", icon: "cog" },
 ];
 
 // Development tools - only shown in development mode
-const DEV_TOOLS = process.env.NODE_ENV !== 'production' ? [
-  { name: 'Test Stock', href: '/admin/test-stock', icon: 'flask' },
-  { name: 'Create Admin', href: '/admin/create-admin', icon: 'user-shield' },
-] : [];
+const DEV_TOOLS =
+  process.env.NODE_ENV !== "production"
+    ? [
+        { name: "Test Stock", href: "/admin/test-stock", icon: "flask" },
+        { name: "Create Admin", href: "/admin/create-admin", icon: "user-shield" },
+      ]
+    : [];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, isAuthenticated, logout } = useSimpleAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
@@ -36,11 +39,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (isClient) {
       if (!isAuthenticated || !user) {
         // Not authenticated, redirect to login
-        console.log('AdminLayout: User not authenticated, redirecting to login');
+        console.log("AdminLayout: User not authenticated, redirecting to login");
         window.location.href = `/login?redirect=${pathname}`;
-      } else if (user.role !== 'ADMIN') {
+      } else if (user.role !== "ADMIN") {
         // Authenticated but not admin, redirect to login with a specific message
-        console.log('AdminLayout: User not admin, redirecting to login');
+        console.log("AdminLayout: User not admin, redirecting to login");
         // Add a query parameter to indicate access denied
         window.location.href = `/login?redirect=${pathname}&access_denied=true`;
       }
@@ -53,7 +56,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   // If not authenticated or not admin, show nothing (will redirect)
-  if (!isAuthenticated || !user || user.role !== 'ADMIN') {
+  if (!isAuthenticated || !user || user.role !== "ADMIN") {
     return null;
   }
 
@@ -68,13 +71,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-gray-900 text-white transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out`}>
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-800">
+      <div
+        className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-gray-900 text-white ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } transition-transform duration-300 ease-in-out lg:translate-x-0`}
+      >
+        <div className="flex h-16 items-center justify-between border-b border-gray-800 px-4">
           <Link href="/admin" className="text-xl font-bold">
             Teelite Admin
           </Link>
           <button
-            className="p-1 rounded-md lg:hidden hover:bg-gray-800"
+            className="rounded-md p-1 hover:bg-gray-800 lg:hidden"
             onClick={() => setIsSidebarOpen(false)}
           >
             <i className="fas fa-times text-lg"></i>
@@ -86,13 +93,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <li key={item.name}>
                 <Link
                   href={item.href}
-                  className={`flex items-center px-4 py-2 text-sm rounded-md ${
+                  className={`flex items-center rounded-md px-4 py-2 text-sm ${
                     pathname === item.href
-                      ? 'bg-gray-800 text-white'
-                      : 'text-gray-300 hover:bg-gray-700'
+                      ? "bg-gray-800 text-white"
+                      : "text-gray-300 hover:bg-gray-700"
                   }`}
                 >
-                  <i className={`fas fa-${item.icon} w-5 h-5 mr-3`}></i>
+                  <i className={`fas fa-${item.icon} mr-3 h-5 w-5`}></i>
                   {item.name}
                 </Link>
               </li>
@@ -100,8 +107,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {DEV_TOOLS.length > 0 && (
               <>
-                <li className="pt-4 pb-2">
-                  <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <li className="pb-2 pt-4">
+                  <div className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
                     Development Tools
                   </div>
                 </li>
@@ -109,13 +116,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <li key={item.name}>
                     <Link
                       href={item.href}
-                      className={`flex items-center px-4 py-2 text-sm rounded-md ${
+                      className={`flex items-center rounded-md px-4 py-2 text-sm ${
                         pathname === item.href
-                          ? 'bg-gray-800 text-white'
-                          : 'text-gray-300 hover:bg-gray-700'
+                          ? "bg-gray-800 text-white"
+                          : "text-gray-300 hover:bg-gray-700"
                       }`}
                     >
-                      <i className={`fas fa-${item.icon} w-5 h-5 mr-3`}></i>
+                      <i className={`fas fa-${item.icon} mr-3 h-5 w-5`}></i>
                       {item.name}
                     </Link>
                   </li>
@@ -128,7 +135,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="px-4 py-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-700">
                   <i className="fas fa-user text-gray-300"></i>
                 </div>
               </div>
@@ -139,9 +146,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
             <button
               onClick={() => logout()}
-              className="mt-3 w-full flex items-center px-4 py-2 text-sm text-gray-300 rounded-md hover:bg-gray-700"
+              className="mt-3 flex w-full items-center rounded-md px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
             >
-              <i className="fas fa-sign-out-alt w-5 h-5 mr-3"></i>
+              <i className="fas fa-sign-out-alt mr-3 h-5 w-5"></i>
               Sign out
             </button>
           </div>
@@ -151,15 +158,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top navbar */}
-        <div className="sticky top-0 z-10 flex items-center justify-between h-16 px-4 bg-white shadow-sm">
-          <button
-            className="p-1 text-gray-700 lg:hidden"
-            onClick={() => setIsSidebarOpen(true)}
-          >
+        <div className="sticky top-0 z-10 flex h-16 items-center justify-between bg-white px-4 shadow-sm">
+          <button className="p-1 text-gray-700 lg:hidden" onClick={() => setIsSidebarOpen(true)}>
             <i className="fas fa-bars text-lg"></i>
           </button>
           <div className="flex items-center">
-            <Link href="/" className="text-gray-700 hover:text-gray-900 mr-4">
+            <Link href="/" className="mr-4 text-gray-700 hover:text-gray-900">
               <i className="fas fa-home mr-1"></i> View Site
             </Link>
             <div className="relative">
@@ -171,9 +175,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Page content */}
-        <main className="p-4 md:p-6 lg:p-8">
-          {children}
-        </main>
+        <main className="p-4 md:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

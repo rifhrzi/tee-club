@@ -94,7 +94,9 @@ export async function POST(request: Request) {
               let price = product.price;
 
               if (item.variantId) {
-                validVariant = product.variants.find((v) => v.id === item.variantId);
+                validVariant = product.variants.find(
+                  (v: { id: string; price: number }) => v.id === item.variantId
+                );
                 if (validVariant) {
                   price = validVariant.price;
                 }
@@ -128,7 +130,9 @@ export async function POST(request: Request) {
               // Calculate price based on variant if it exists and is valid
               let price = product.price;
               if (item.variantId) {
-                const validVariant = product.variants.find((v) => v.id === item.variantId);
+                const validVariant = product.variants.find(
+                  (v: { id: string; price: number }) => v.id === item.variantId
+                );
                 if (validVariant) {
                   price = validVariant.price;
                 }

@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface User {
   id: string;
@@ -33,25 +33,25 @@ const useAuth = create<AuthState>()(
       refreshToken: null,
       login: async (email: string, password: string) => {
         try {
-          console.log('Attempting login with:', { email });
+          console.log("Attempting login with:", { email });
 
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),
           });
 
           if (!response.ok) {
             const errorData = await response.json();
-            console.error('Login response error:', errorData);
-            throw new Error(errorData.error || 'Login failed');
+            console.error("Login response error:", errorData);
+            throw new Error(errorData.error || "Login failed");
           }
 
           const data: LoginResponse = await response.json();
-          console.log('Login successful, received data:', {
+          console.log("Login successful, received data:", {
             user: data.user,
             hasAccessToken: !!data.accessToken,
-            hasRefreshToken: !!data.refreshToken
+            hasRefreshToken: !!data.refreshToken,
           });
 
           // Set the state
@@ -63,7 +63,7 @@ const useAuth = create<AuthState>()(
           });
 
           // Also set cookies directly for middleware access
-          if (typeof document !== 'undefined') {
+          if (typeof document !== "undefined") {
             // Store token in a cookie that middleware can access
             const tokenCookie = `auth_token=${data.accessToken}; path=/; max-age=604800; SameSite=Lax`;
             document.cookie = tokenCookie;
@@ -72,45 +72,51 @@ const useAuth = create<AuthState>()(
             const userInfo = JSON.stringify({
               id: data.user.id,
               email: data.user.email,
-              role: data.user.role || 'USER'
+              role: data.user.role || "USER",
             });
-            const userCookie = `auth_user=${encodeURIComponent(userInfo)}; path=/; max-age=604800; SameSite=Lax`;
+            const userCookie = `auth_user=${encodeURIComponent(
+              userInfo
+            )}; path=/; max-age=604800; SameSite=Lax`;
             document.cookie = userCookie;
 
-            console.log('Auth: Set direct auth cookies for middleware access');
+            console.log("Auth: Set direct auth cookies for middleware access");
           }
         } catch (error) {
-          console.error('Login error:', error);
+          console.error("Login error:", error);
           throw error;
         }
       },
       logout: () => {
         // Clear all auth-related cookies and localStorage
-        if (typeof document !== 'undefined') {
+        if (typeof document !== "undefined") {
           // Clear all possible cookie variations
           const cookiesToClear = [
-            "auth-storage", "auth_storage", "simple-auth-storage",
-            "auth_token", "auth_user", "debug-token"
+            "auth-storage",
+            "auth_storage",
+            "simple-auth-storage",
+            "auth_token",
+            "auth_user",
+            "debug-token",
           ];
 
-          cookiesToClear.forEach(name => {
+          cookiesToClear.forEach((name) => {
             document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
             document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
           });
 
           // Clear localStorage
-          localStorage.removeItem('auth-storage');
-          localStorage.removeItem('auth_storage');
-          localStorage.removeItem('simple-auth-storage');
+          localStorage.removeItem("auth-storage");
+          localStorage.removeItem("auth_storage");
+          localStorage.removeItem("simple-auth-storage");
 
-          console.log('Auth: Cleared all auth cookies and localStorage');
+          console.log("Auth: Cleared all auth cookies and localStorage");
         }
 
         set({
           isAuthenticated: false,
           user: null,
           token: null,
-          refreshToken: null
+          refreshToken: null,
         });
       },
       isSessionExpired: () => {
@@ -120,7 +126,7 @@ const useAuth = create<AuthState>()(
         try {
           // Simple check - in a real app you'd verify the token
           // This just checks if there's a token that looks valid
-          const parts = token.split('.');
+          const parts = token.split(".");
           if (parts.length !== 3) return true;
 
           // Check expiration by decoding the payload
@@ -128,13 +134,13 @@ const useAuth = create<AuthState>()(
           const expiry = payload.exp * 1000; // Convert to milliseconds
           return Date.now() > expiry;
         } catch (e) {
-          console.error('Error checking token expiry:', e);
+          console.error("Error checking token expiry:", e);
           return true;
         }
-      }
+      },
     }),
     {
-      name: 'auth-storage',
+      name: "auth-storage",
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         user: state.user,
@@ -144,30 +150,32 @@ const useAuth = create<AuthState>()(
       // Ensure cookies are properly set with appropriate options
       storage: {
         getItem: (name) => {
-          if (typeof window !== 'undefined') {
+          if (typeof window !== "undefined") {
             const item = localStorage.getItem(name);
-            return item ? item : null;
+            return item ? JSON.parse(item) : null;
           }
           return null;
         },
         setItem: (name, value) => {
-          if (typeof window !== 'undefined') {
+          if (typeof window !== "undefined") {
             // Store in localStorage
-            localStorage.setItem(name, value);
+            localStorage.setItem(name, JSON.stringify(value));
 
             // Also set as a cookie for middleware access
-            document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=2592000; SameSite=Lax`;
-            console.log('Auth: Set auth cookie and localStorage');
+            document.cookie = `${name}=${encodeURIComponent(
+              JSON.stringify(value)
+            )}; path=/; max-age=2592000; SameSite=Lax`;
+            console.log("Auth: Set auth cookie and localStorage");
           }
         },
         removeItem: (name) => {
-          if (typeof window !== 'undefined') {
+          if (typeof window !== "undefined") {
             localStorage.removeItem(name);
             document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
-            console.log('Auth: Removed auth cookie and localStorage');
+            console.log("Auth: Removed auth cookie and localStorage");
           }
-        }
-      }
+        },
+      },
     }
   )
 );

@@ -42,12 +42,14 @@ export async function GET(request: Request) {
           status: order.status,
           totalAmount: order.totalAmount,
           createdAt: order.createdAt,
-          items: order.items.map((item) => ({
-            id: item.id,
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price,
-          })),
+          items: order.items.map(
+            (item: { id: string; productId: string; quantity: number; price: number }) => ({
+              id: item.id,
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+            })
+          ),
           shippingDetails: order.shippingDetails,
         },
       });

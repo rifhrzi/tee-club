@@ -53,7 +53,7 @@ export function middleware(request: NextRequest) {
     hasDebugTokenCookie: !!debugTokenCookie,
     hasNextAuthCookie: !!nextAuthCookie,
     hasAuthHeader: !!authHeader,
-    hasQueryToken: !!queryToken
+    hasQueryToken: !!queryToken,
   });
 
   // Try method 1: Zustand auth-storage (try all cookie formats)
@@ -63,7 +63,8 @@ export function middleware(request: NextRequest) {
     if (isAuthenticated) break; // Stop if we've already authenticated
 
     try {
-      console.log("Middleware: Trying to parse cookie:", cookieValue?.substring(0, 20) + "...");
+      if (!cookieValue) continue;
+      console.log("Middleware: Trying to parse cookie:", cookieValue.substring(0, 20) + "...");
       const parsedStorage = JSON.parse(cookieValue);
       const state = parsedStorage.state || parsedStorage;
 
@@ -92,7 +93,7 @@ export function middleware(request: NextRequest) {
       console.log("Middleware: Found direct auth token cookie");
 
       // Try to verify the token
-      const parts = authTokenCookie.split('.');
+      const parts = authTokenCookie.split(".");
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
         console.log("Middleware: Direct auth token payload:", payload);
@@ -139,7 +140,7 @@ export function middleware(request: NextRequest) {
   if (!isAuthenticated && tokenToVerify) {
     try {
       // Basic JWT validation (in production, you'd verify the signature)
-      const parts = tokenToVerify.split('.');
+      const parts = tokenToVerify.split(".");
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
         console.log("Middleware: JWT payload:", payload);
@@ -147,8 +148,14 @@ export function middleware(request: NextRequest) {
         if (payload.userId || payload.sub || payload.id) {
           isAuthenticated = true;
           userRole = payload.role || "USER";
-          console.log("Middleware: Valid JWT token found in " + (token ? "Authorization header" : "query parameter"));
-          console.log("Middleware: User ID from token:", payload.userId || payload.sub || payload.id);
+          console.log(
+            "Middleware: Valid JWT token found in " +
+              (token ? "Authorization header" : "query parameter")
+          );
+          console.log(
+            "Middleware: User ID from token:",
+            payload.userId || payload.sub || payload.id
+          );
         }
       }
     } catch (error) {
@@ -164,7 +171,7 @@ export function middleware(request: NextRequest) {
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 1 week
       httpOnly: false,
-      sameSite: "lax"
+      sameSite: "lax",
     });
     return response;
   }

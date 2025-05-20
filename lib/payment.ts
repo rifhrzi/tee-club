@@ -1,13 +1,13 @@
-import midtransClient from 'midtrans-client'
-import { OrderInput } from './validation'
-import { db } from '@/lib/db'
+import midtransClient from "midtrans-client";
+import { OrderInput } from "./validation";
+import { db } from "@/lib/db";
 
 // Initialize Midtrans
 const snap = new midtransClient.Snap({
-  isProduction: process.env.NODE_ENV === 'production',
+  isProduction: process.env.NODE_ENV === "production",
   serverKey: process.env.MIDTRANS_SERVER_KEY!,
   clientKey: process.env.MIDTRANS_CLIENT_KEY!,
-})
+});
 
 export async function createPayment(order: OrderInput, user: any) {
   // Generate a unique order ID
@@ -19,12 +19,13 @@ export async function createPayment(order: OrderInput, user: any) {
 
   // If not set, use a default based on environment
   if (!baseUrl) {
-    baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://your-production-domain.com'
-      : 'http://localhost:3001'; // Updated to use 3001 for development
+    baseUrl =
+      process.env.NODE_ENV === "production"
+        ? "https://your-production-domain.com"
+        : "http://localhost:3001"; // Updated to use 3001 for development
   }
 
-  console.log('Payment creation - Using base URL:', baseUrl);
+  console.log("Payment creation - Using base URL:", baseUrl);
 
   const transactionDetails = {
     transaction_details: {
@@ -48,41 +49,38 @@ export async function createPayment(order: OrderInput, user: any) {
       error: `${baseUrl}/payment/failure?order_id=${orderId}`,
       pending: `${baseUrl}/payment/pending?order_id=${orderId}`,
     },
-  }
+  };
 
   try {
-    const transaction = await snap.createTransaction(transactionDetails)
+    const transaction = await snap.createTransaction(transactionDetails);
     return {
       token: transaction.token,
       redirect_url: transaction.redirect_url,
       orderId,
-    }
+    };
   } catch (error) {
-    console.error('Midtrans payment creation failed:', error)
-    throw new Error('Payment creation failed')
+    console.error("Midtrans payment creation failed:", error);
+    throw new Error("Payment creation failed");
   }
 }
 
-async function calculateTotal(items: OrderInput['items']): Promise<number> {
+async function calculateTotal(items: OrderInput["items"]): Promise<number> {
   // Fetch products from database to get prices
   const products = await db.product.findMany({
     where: {
       id: {
-        in: items.map(item => item.productId)
-      }
+        in: items.map((item) => item.productId),
+      },
     },
     select: {
       id: true,
-      price: true
-    }
+      price: true,
+    },
   });
 
   return items.reduce((total, item) => {
-    const product = products.find(p => p.id === item.productId);
+    const product = products.find((p: { id: string; price: number }) => p.id === item.productId);
     if (!product) throw new Error(`Product ${item.productId} not found`);
-    return total + (product.price * item.quantity);
+    return total + product.price * item.quantity;
   }, 0);
 }
-
-
-

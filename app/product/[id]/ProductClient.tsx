@@ -98,7 +98,7 @@ export default function ProductClient({ product }: { product: Product | null }) 
     // Add the product to the cart multiple times based on quantity
     for (let i = 0; i < quantity; i++) {
       // Use skipAuthCheck since we already checked authentication
-      addToCart(cartProduct, { skipAuthCheck: true });
+      addToCart(cartProduct);
     }
 
     // Show success toast
@@ -113,7 +113,7 @@ export default function ProductClient({ product }: { product: Product | null }) 
     // Check if user is authenticated
     if (!isAuthenticated) {
       // Redirect to signup page
-      redirectToSignup('/checkout');
+      redirectToSignup("/checkout");
       return;
     }
 

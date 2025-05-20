@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcryptjs from "bcryptjs"; // Ganti bcrypt dengan bcryptjs
 import { v4 as uuidv4 } from "uuid";
-import { UserRole } from "@prisma/client";
 
 // Secret key untuk mengamankan endpoint ini
 const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || "teelite-admin-secret";
@@ -22,10 +21,7 @@ export async function POST(request: Request) {
 
     // Validasi secret key
     if (secretKey !== ADMIN_SECRET_KEY) {
-      return NextResponse.json(
-        { error: "Invalid secret key" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid secret key" }, { status: 401 });
     }
 
     // Validasi input
@@ -42,10 +38,7 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: "Email already in use" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Email already in use" }, { status: 400 });
     }
 
     // Hash password
@@ -58,7 +51,7 @@ export async function POST(request: Request) {
         email,
         name,
         password: hashedPassword,
-        role: UserRole.ADMIN,
+        role: "ADMIN", // Use string literal instead of UserRole.ADMIN
       },
     });
 
@@ -71,9 +64,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Error creating admin user:", error);
-    return NextResponse.json(
-      { error: "Failed to create admin user" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create admin user" }, { status: 500 });
   }
 }
