@@ -2,21 +2,19 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { useSession, signOut } from 'next-auth/react';
 import { NAVIGATION } from '../../constants';
-import useAuth from '@/hooks/useAuth';
 
 interface MobileMenuProps {
     isOpen: boolean;
     user?: any; // Pass user from parent
-    logout?: () => void; // Pass logout function from parent
 }
 
-export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, user: propUser, logout: propLogout }) => {
-    // Use props if provided, otherwise use the hook
-    const authHook = useAuth();
-    const user = propUser || authHook.user;
-    const logout = propLogout || authHook.logout;
-    const isAuthenticated = authHook.isAuthenticated;
+export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, user: propUser }) => {
+    // Use NextAuth session
+    const { data: session, status } = useSession();
+    const user = propUser || session?.user;
+    const isAuthenticated = status === 'authenticated';
 
     // Debug: Log authentication state
     useEffect(() => {
@@ -65,25 +63,14 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, user: propUser, 
                             onClick={() => {
                                 console.log('MobileMenu: Sign Out button clicked');
 
-                                // Clear cookies manually before calling logout
-                                document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-                                document.cookie = "auth-storage=; path=/; max-age=0; SameSite=Lax";
+                                // Clear any old auth storage
+                                if (typeof window !== 'undefined') {
+                                    localStorage.removeItem('auth-storage');
+                                    document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+                                }
 
-                                // Also clear localStorage
-                                localStorage.removeItem('auth-storage');
-
-                                // For backward compatibility, also clear the old cookie and localStorage
-                                document.cookie = "simple-auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-                                document.cookie = "simple-auth-storage=; path=/; max-age=0; SameSite=Lax";
-                                localStorage.removeItem('simple-auth-storage');
-
-                                // Call the logout function
-                                logout();
-
-                                // Force reload after a short delay
-                                setTimeout(() => {
-                                    window.location.href = '/';
-                                }, 100);
+                                // Call NextAuth signOut
+                                signOut({ callbackUrl: '/' });
                             }}
                             className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors w-full"
                         >

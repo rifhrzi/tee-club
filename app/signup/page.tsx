@@ -2,15 +2,24 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { getStoredRedirectPath, clearStoredRedirectPath } from "@/utils/authRedirect";
 
 interface ApiResponse {
   error?: string;
+  message?: string;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+  };
 }
 
 export default function SignUpPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams?.get('callbackUrl') || '/';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
@@ -41,6 +50,8 @@ export default function SignUpPage() {
     }
 
     try {
+      console.log('Signup page: Creating account for:', formData.email);
+
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,9 +68,7 @@ export default function SignUpPage() {
         throw new Error(data.error || 'Failed to create account');
       }
 
-      if (typeof window !== 'undefined') {
-        window.alert('Account created successfully! Please login with your credentials.');
-      }
+      console.log('Signup page: Account created successfully');
 
       // Store the redirect path in localStorage for the login page to use
       if (redirectPath) {
@@ -68,8 +77,24 @@ export default function SignUpPage() {
         clearStoredRedirectPath();
       }
 
-      router.push('/login');
+      // Automatically sign in the user
+      console.log('Signup page: Attempting to sign in with new account');
+      const signInResult = await signIn('credentials', {
+        redirect: false,
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (signInResult?.error) {
+        console.log('Signup page: Auto sign-in failed, redirecting to login page');
+        router.push('/login');
+      } else {
+        console.log('Signup page: Auto sign-in successful, redirecting to:', redirectPath || callbackUrl);
+        router.push(redirectPath || callbackUrl || '/');
+        router.refresh();
+      }
     } catch (error) {
+      console.error('Signup page: Error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);

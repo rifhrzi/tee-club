@@ -1,32 +1,31 @@
 export const dynamic = "force-dynamic";
 
-import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
+import { NextResponse, NextRequest } from "next/server";
 import { db } from "@/lib/db";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
-    // Auth check
-    const token = request.headers.get("authorization")?.split(" ")[1];
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const userId = request.headers.get("x-user-id");
+    console.log("Orders API - x-user-id:", userId);
+
+    if (!userId) {
+      console.log("Orders API - No user ID, returning 401");
+      return NextResponse.json({ error: "Unauthorized", message: "Authentication required" }, { status: 401 });
     }
 
-    // Verify token and get user
-    const decoded = verifyToken(token);
     const user = await db.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: userId },
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      console.log("Orders API - User not found for ID:", userId);
+      return NextResponse.json({ error: "User not found", message: "The user associated with this authentication could not be found" }, { status: 404 });
     }
 
-    // Fetch the order
     const order = await db.order.findUnique({
       where: {
-        id: params.id,
-        userId: user.id, // Ensure the order belongs to the user
+        id: context.params.id,
+        userId: user.id,
       },
       include: {
         items: {
@@ -46,12 +45,15 @@ export async function GET(request: Request, { params }: { params: { id: string }
     });
 
     if (!order) {
+      console.log("Orders API - Order not found for ID:", context.params.id);
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    console.log("Orders API - Order fetched for user:", user.email);
     return NextResponse.json({ order });
   } catch (error) {
-    console.error("Error fetching order:", error);
-    return NextResponse.json({ error: "Failed to fetch order" }, { status: 500 });
+    console.error("Orders API - Error fetching order:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: "Failed to fetch order", message: errorMessage }, { status: 500 });
   }
 }

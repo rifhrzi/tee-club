@@ -1,20 +1,21 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { verifyToken, generateAuthTokens } from '@/lib/auth';
-import { rateLimit } from '@/lib/rate-limit';
+export const dynamic = "force-dynamic";
 
-// Define request body interface
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { verifyToken, generateAuthTokens } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
+
 interface RefreshRequestBody {
   refreshToken: string;
 }
 
 export async function POST(request: Request) {
   try {
-    const ip = request.headers.get('x-forwarded-for') || 'anonymous';
+    const ip = request.headers.get("x-forwarded-for") || "anonymous";
     const { success } = await rateLimit(ip, 'auth');
     if (!success) {
       return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
+        { error: "Too many requests. Please try again later." },
         { status: 429 }
       );
     }
@@ -24,17 +25,17 @@ export async function POST(request: Request) {
 
     if (!refreshToken) {
       return NextResponse.json(
-        { error: 'Refresh token is required' },
+        { error: "Refresh token is required" },
         { status: 400 }
       );
     }
 
     let payload;
     try {
-      payload = verifyToken(refreshToken, 'refresh');
+      payload = await verifyToken(refreshToken, 'refresh');
     } catch (error) {
       return NextResponse.json(
-        { error: 'Invalid refresh token' },
+        { error: "Invalid refresh token" },
         { status: 401 }
       );
     }
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
 
     if (!storedToken) {
       return NextResponse.json(
-        { error: 'Invalid refresh token' },
+        { error: "Invalid refresh token" },
         { status: 401 }
       );
     }
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
       where: { id: storedToken.id },
     });
 
-    const { accessToken, refreshToken: newRefreshToken } = generateAuthTokens(payload.userId);
+    const { accessToken, refreshToken: newRefreshToken } = await generateAuthTokens(payload.userId);
 
     await db.refreshToken.create({
       data: {
@@ -79,9 +80,10 @@ export async function POST(request: Request) {
       user,
     });
   } catch (error) {
-    console.error('Token refresh error:', error);
+    console.error("Token refresh error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: 'Failed to refresh token' },
+      { error: "Failed to refresh token", message: errorMessage },
       { status: 500 }
     );
   }

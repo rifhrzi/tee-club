@@ -11,6 +11,12 @@ const nextConfig = {
       },
     ],
   },
+  // Skip static generation for pages that require database access
+  output: 'standalone',
+  experimental: {
+    // Correctly place experimental options here
+    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
+  },
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

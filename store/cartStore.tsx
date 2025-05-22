@@ -8,7 +8,7 @@ import { redirectToSignup } from "../utils/authRedirect";
 interface CartState {
   cart: CartItem[];
   initialized: boolean;
-  addToCart: (product: Product) => void;
+  addToCart: (product: Product, options?: { skipAuthCheck?: boolean, currentPath?: string }) => void;
   removeFromCart: (productId: string | number) => void;
   updateQuantity: (productId: string | number, quantity: number) => void;
   clearCart: () => void;
@@ -69,18 +69,35 @@ const useCartStore = create<CartState>()(
       },
 
       addToCart: (product: Product, options: { skipAuthCheck?: boolean, currentPath?: string } = {}) => {
+        console.log('CartStore: addToCart called with options:', options);
+
         // Skip auth check if explicitly requested (for internal use only)
         if (!options.skipAuthCheck) {
-          // Check if user is authenticated by looking for auth token in localStorage
-          const authStorage = ls.isBrowser ? localStorage.getItem('auth-storage') : null;
-          let isAuthenticated = false;
+          console.log('CartStore: Performing authentication check');
 
-          if (authStorage) {
-            try {
-              const authData = JSON.parse(authStorage);
-              isAuthenticated = authData.state?.isAuthenticated || false;
-            } catch (e) {
-              console.error('Error parsing auth storage:', e);
+          // For NextAuth, we'll rely on the authentication check done in the component
+          // that calls this function. The component should check session status before
+          // calling addToCart.
+
+          // This is kept for backward compatibility with any code that might
+          // call addToCart directly without checking authentication first
+
+          // Check if user is authenticated using our utility function
+          let isAuthenticated = ls.isNextAuthAuthenticated();
+          console.log('CartStore: NextAuth authentication check result:', isAuthenticated);
+
+          // Also check the old auth storage for backward compatibility
+          if (!isAuthenticated && ls.isBrowser) {
+            console.log('CartStore: Checking old auth storage as fallback');
+            const authStorage = localStorage.getItem('auth-storage');
+            if (authStorage) {
+              try {
+                const authData = JSON.parse(authStorage);
+                isAuthenticated = authData.state?.isAuthenticated || false;
+                console.log('CartStore: Old auth storage check result:', isAuthenticated);
+              } catch (e) {
+                console.error('Error parsing auth storage:', e);
+              }
             }
           }
 
@@ -90,6 +107,10 @@ const useCartStore = create<CartState>()(
             redirectToSignup(options.currentPath || (ls.isBrowser ? window.location.pathname : '/'));
             return;
           }
+
+          console.log('CartStore: User is authenticated, proceeding with adding to cart');
+        } else {
+          console.log('CartStore: Skipping authentication check as requested');
         }
 
         // If authenticated or skipAuthCheck is true, proceed with adding to cart

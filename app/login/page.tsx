@@ -1,19 +1,22 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import useAuth from '@/hooks/useAuth';
-import { useRouter } from 'next/navigation';
+import { signIn, useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { clearStoredRedirectPath } from '@/utils/authRedirect';
 
 function UserLogin() {
-  const { login, isAuthenticated } = useAuth();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams?.get('callbackUrl') || '/';
+  const authError = searchParams?.get('error');
 
   // Check for redirect path on component mount
   useEffect(() => {
@@ -21,7 +24,18 @@ function UserLogin() {
     if (storedRedirect) {
       setRedirectPath(storedRedirect);
     }
-  }, []);
+
+    // Check for error in URL
+    if (authError) {
+      switch (authError) {
+        case 'CredentialsSignin':
+          setError('Invalid email or password. Please try again.');
+          break;
+        default:
+          setError('An error occurred during sign in. Please try again.');
+      }
+    }
+  }, [authError]);
 
   // Clear any previous errors when inputs change
   useEffect(() => {
@@ -43,25 +57,33 @@ function UserLogin() {
     try {
       console.log('Login page: Attempting to log in with:', email);
 
-      // Add a small delay to show loading state
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Use NextAuth signIn
+      const result = await signIn('credentials', {
+        redirect: false,
+        email,
+        password,
+      });
 
-      await login(email, password);
-      console.log('Login page: Login successful, redirecting...');
+      console.log('Login page: Sign in result:', result);
 
-      // Show success message before redirecting
-      setError('');
+      if (result?.error) {
+        throw new Error(result.error);
+      }
 
-      // Clear any stored redirect paths
-      const redirectTo = redirectPath || '/';
-      localStorage.removeItem('login_redirect');
-      clearStoredRedirectPath();
+      if (result?.ok) {
+        console.log('Login page: Login successful, redirecting...');
 
-      // Redirect after a short delay
-      setTimeout(() => {
-        router.push(redirectTo);
-      }, 500);
+        // Clear any stored redirect paths
+        const redirectTo = redirectPath || callbackUrl || '/';
+        localStorage.removeItem('login_redirect');
+        clearStoredRedirectPath();
 
+        // Redirect after a short delay
+        setTimeout(() => {
+          router.push(redirectTo);
+          router.refresh();
+        }, 500);
+      }
     } catch (error) {
       console.error('Login page: Login error:', error);
 
@@ -69,7 +91,7 @@ function UserLogin() {
         // Extract specific error message if available
         const errorMessage = error.message || 'Login failed. Please check your credentials.';
 
-        if (errorMessage.includes('Invalid email or password')) {
+        if (errorMessage.includes('CredentialsSignin')) {
           setError('The email or password you entered is incorrect. Please try again.');
         } else if (errorMessage.includes('Too many login attempts')) {
           setError('Too many login attempts. Please try again later.');
@@ -86,18 +108,18 @@ function UserLogin() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (status === 'authenticated' && session) {
       console.log('Login page: User already authenticated, redirecting...');
 
       // Check if there's a redirect in the URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlRedirect = urlParams.get('redirect');
+      const urlRedirect = searchParams?.get('callbackUrl');
       const finalRedirect = urlRedirect || redirectPath || '/';
 
       // Redirect to the appropriate path
       router.push(finalRedirect);
+      router.refresh();
     }
-  }, [isAuthenticated, router]);
+  }, [status, session, router, searchParams, redirectPath]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -165,7 +187,7 @@ function UserLogin() {
           <div className="text-sm text-center">
             <p>
               Don't have an account?{' '}
-              <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
+              <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
                 Sign up
               </Link>
             </p>

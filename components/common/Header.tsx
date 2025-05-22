@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
 import { MobileMenu } from "./MobileMenu";
 import { SITE_CONFIG, NAVIGATION } from "../../constants";
-import useAuth from "@/hooks/useAuth";
 
 export const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth();
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === 'authenticated';
+  const user = session?.user;
 
   // Debug: Log authentication state
   useEffect(() => {
@@ -64,20 +66,14 @@ export const Header = () => {
                     onClick={() => {
                       console.log('Header: Sign Out button clicked');
 
-                      // Clear cookies manually before calling logout
-                      document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-                      document.cookie = "auth-storage=; path=/; max-age=0; SameSite=Lax";
+                      // Clear any old auth storage
+                      if (typeof window !== 'undefined') {
+                        localStorage.removeItem('auth-storage');
+                        document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+                      }
 
-                      // Also clear localStorage
-                      localStorage.removeItem('auth-storage');
-
-                      // For backward compatibility, also clear the old cookie and localStorage
-                      document.cookie = "simple-auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-                      document.cookie = "simple-auth-storage=; path=/; max-age=0; SameSite=Lax";
-                      localStorage.removeItem('simple-auth-storage');
-
-                      // Call the logout function
-                      logout();
+                      // Call NextAuth signOut
+                      signOut({ callbackUrl: '/' });
                     }}
                     className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-300"
                   >
@@ -102,7 +98,6 @@ export const Header = () => {
         <MobileMenu
           isOpen={isMobileMenuOpen}
           user={user}
-          logout={logout}
         />
       </div>
     </header>

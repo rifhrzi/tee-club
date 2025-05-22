@@ -9,19 +9,19 @@ const snap = new midtransClient.Snap({
   clientKey: process.env.MIDTRANS_CLIENT_KEY!,
 })
 
-export async function createPayment(order: OrderInput, user: any) {
+export async function createPayment(order: OrderInput, user: any, customBaseUrl?: string) {
   // Generate a unique order ID
   const orderId = `ORDER-${Date.now()}`;
 
   // Base URL for redirects
-  // Get the base URL from the request headers or environment variables
-  let baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  // Get the base URL from the parameter, or use a default based on environment
+  let baseUrl = customBaseUrl;
 
   // If not set, use a default based on environment
   if (!baseUrl) {
     baseUrl = process.env.NODE_ENV === 'production'
       ? 'https://your-production-domain.com'
-      : 'http://localhost:3001'; // Updated to use 3001 for development
+      : 'http://localhost:3000';
   }
 
   console.log('Payment creation - Using base URL:', baseUrl);
@@ -78,7 +78,7 @@ async function calculateTotal(items: OrderInput['items']): Promise<number> {
   });
 
   return items.reduce((total, item) => {
-    const product = products.find(p => p.id === item.productId);
+    const product = products.find((p: any) => p.id === item.productId);
     if (!product) throw new Error(`Product ${item.productId} not found`);
     return total + (product.price * item.quantity);
   }, 0);

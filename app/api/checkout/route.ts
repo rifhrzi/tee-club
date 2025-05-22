@@ -1,82 +1,89 @@
-import { NextResponse } from "next/server";
-import { createPayment } from "@/lib/payment";
-import { orderSchema } from "@/lib/validation";
-import { verifyToken } from "@/lib/auth";
-import { rateLimit } from "@/lib/rate-limit";
-import { db } from "@/lib/db";
-import { ZodError } from "zod";
+import { NextResponse } from 'next/server';
+import { createPayment } from '@/lib/payment';
+import { orderSchema } from '@/lib/validation';
+import { rateLimit } from '@/lib/rate-limit';
+import { db } from '@/lib/db';
+import { ZodError } from 'zod';
+import { Variant } from '@/store/types';
 
 export async function POST(request: Request) {
   try {
     // Rate limiting
-    const ip = request.headers.get("x-forwarded-for") || "anonymous";
+    const ip = request.headers.get('x-forwarded-for') || 'anonymous';
     const { success } = await rateLimit(ip);
     if (!success) {
-      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
-    // Check for authentication token (optional)
-    let user = null;
-    const token = request.headers.get("authorization")?.split(" ")[1];
+    // Enforce authentication via x-user-id (set by middleware)
+    const userId = request.headers.get('x-user-id');
+    const authType = request.headers.get('x-auth-type') || 'unknown';
+    const nextAuthUserId = request.headers.get('X-NextAuth-User-ID');
 
-    // If token exists, verify it and get the user
-    if (token) {
-      try {
-        const decoded = verifyToken(token);
-        user = await db.user.findUnique({
-          where: { id: decoded.userId },
-        });
-        console.log("Authenticated checkout for user:", user?.email);
-      } catch (error) {
-        console.log("Invalid token, proceeding with guest checkout");
-      }
-    } else {
-      console.log("No token provided, proceeding with guest checkout");
+    // Log all headers for debugging
+    console.log('Checkout API - Request headers:');
+    request.headers.forEach((value, key) => {
+      console.log(`  ${key}: ${value}`);
+    });
+
+    console.log('Checkout API - Authentication info:', {
+      'x-user-id': userId,
+      'x-auth-type': authType,
+      'X-NextAuth-User-ID': nextAuthUserId
+    });
+
+    if (!userId) {
+      console.log('Checkout API - No user ID, returning 401');
+      return NextResponse.json({
+        error: 'Unauthorized',
+        message: 'Authentication required. Please log in to continue with checkout.',
+        code: 'AUTH_REQUIRED'
+      }, {
+        status: 401,
+        headers: {
+          'X-Auth-Required': 'true',
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      });
     }
+
+    // Verify user exists
+    const user = await db.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      console.log('Checkout API - User not found for ID:', userId);
+      return NextResponse.json({
+        error: 'User not found',
+        message: 'The user associated with this authentication could not be found',
+        code: 'USER_NOT_FOUND'
+      }, {
+        status: 404,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      });
+    }
+
+    console.log('Checkout API - Authenticated user:', user.email, 'using auth type:', authType);
 
     // Validate request body
     const body = await request.json();
     const validatedData = orderSchema.parse(body);
 
-    // Create a guest user if not authenticated
-    if (!user) {
-      // Check if a user with this email already exists
-      const existingUser = await db.user.findUnique({
-        where: { email: validatedData.shippingDetails.email },
-      });
-
-      if (existingUser) {
-        // Use the existing user
-        user = existingUser;
-        console.log("Using existing user account:", user.email);
-      } else {
-        // Create a temporary guest user
-        user = await db.user.create({
-          data: {
-            email: validatedData.shippingDetails.email,
-            name: validatedData.shippingDetails.name,
-            password: Math.random().toString(36).substring(2, 15), // Random password
-          },
-        });
-        console.log("Created guest user:", user.email);
-      }
-    }
-
     // Get the origin from the request headers
-    const origin = request.headers.get("origin") || "http://localhost:3001";
-    console.log("Checkout API - Request origin:", origin);
+    const origin = request.headers.get('origin') || 'http://localhost:3000';
+    console.log('Checkout API - Request origin:', origin);
 
-    // Set the base URL environment variable
-    process.env.NEXT_PUBLIC_BASE_URL = origin;
-
-    // Create payment
-    const payment = await createPayment(validatedData, user);
+    // Create payment with the origin as the base URL
+    const payment = await createPayment(validatedData, user, origin);
 
     // Create order in database
     const order = await db.order.create({
       data: {
         userId: user.id,
-        status: "PENDING",
+        status: 'PENDING',
         items: {
           create: await Promise.all(
             validatedData.items.map(async (item) => {
@@ -89,25 +96,22 @@ export async function POST(request: Request) {
                 throw new Error(`Product ${item.productId} not found`);
               }
 
-              // Check if the variant exists and is valid
-              let validVariant = null;
+              let validVariant: Variant | null = null;
               let price = product.price;
 
               if (item.variantId) {
-                validVariant = product.variants.find((v) => v.id === item.variantId);
+                validVariant = product.variants.find((v: Variant) => v.id === item.variantId) || null;
                 if (validVariant) {
                   price = validVariant.price;
                 }
               }
 
-              // Create the order item with or without variantId
               const orderItem: any = {
                 productId: item.productId,
                 quantity: item.quantity,
                 price: price,
               };
 
-              // Only add variantId if it's a valid variant
               if (validVariant) {
                 orderItem.variantId = item.variantId;
               }
@@ -125,10 +129,11 @@ export async function POST(request: Request) {
               });
               if (!product) throw new Error(`Product ${item.productId} not found`);
 
-              // Calculate price based on variant if it exists and is valid
+              let validVariant: Variant | null = null;
               let price = product.price;
+
               if (item.variantId) {
-                const validVariant = product.variants.find((v) => v.id === item.variantId);
+                validVariant = product.variants.find((v: Variant) => v.id === item.variantId) || null;
                 if (validVariant) {
                   price = validVariant.price;
                 }
@@ -151,13 +156,14 @@ export async function POST(request: Request) {
       redirectUrl: payment.redirect_url,
     });
   } catch (error) {
-    console.error("Checkout error:", error);
+    console.error('Checkout API - Error:', error);
     if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Invalid request data", details: error.errors },
+        { error: 'Invalid request data', details: error.errors },
         { status: 400 }
       );
     }
-    return NextResponse.json({ error: "Checkout failed" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Checkout failed', message: errorMessage }, { status: 500 });
   }
 }

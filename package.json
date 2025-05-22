@@ -9,7 +9,7 @@
     "lint": "next lint",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf .next",
+    "clean": "rimraf .next",
     "test": "jest",
     "test:watch": "jest --watch",
     "prepare": "husky install",
@@ -29,10 +29,10 @@
     "clsx": "2.1.0",
     "dotenv": "^16.5.0",
     "framer-motion": "^12.6.0",
-    "jsonwebtoken": "^9.0.2",
+    "jose": "^6.0.11",
     "midtrans-client": "^1.4.2",
-    "next": "14.1.0",
-    "next-auth": "^4.24.11",
+    "next": "14.2.15",
+    "next-auth": "4.24.7",
     "pg": "^8.15.6",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -61,9 +61,10 @@
     "prettier": "3.1.1",
     "prettier-plugin-tailwindcss": "0.5.9",
     "prisma": "^6.5.0",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.17",
     "ts-node": "^10.9.2",
-    "typescript": "5.3.3"
+    "typescript": "5.2.2"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

@@ -1,0 +1,51 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - JWT_ACCESS_SECRET=G0A6ruhpXO+XbDHXllPd3UcwWTi7GVdUoVtVPO8BQ78=
+      - JWT_REFRESH_SECRET=ikxoJmR8D3+qEL58B7ok3q0U2hMi65ZFe4p4KBLKq1s=
+      - MIDTRANS_SERVER_KEY=SB-Mid-server-FLgSZO5-583rAd3BXvadHcNL
+      - MIDTRANS_CLIENT_KEY=SB-Mid-client-oISDZp8SG839bmMP
+      - NEXT_PUBLIC_BASE_URL=http://localhost:3000
+      - DATABASE_URL=postgresql://postgres:Fatur123@db:5432/teelite?schema=public
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=supersecretkey123456789
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - teelite-network
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed && node .next/standalone/server.js"
+
+  db:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Fatur123
+      - POSTGRES_DB=teelite
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - teelite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
+networks:
+  teelite-network:
+    driver: bridge

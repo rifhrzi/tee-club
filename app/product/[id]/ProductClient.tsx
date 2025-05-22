@@ -5,12 +5,11 @@ import dynamic from "next/dynamic";
 import { formatPrice } from "@/constants";
 import Link from "next/link";
 import useCartStore from "@/store/cartStore";
-import useAuth from "@/hooks/useAuth";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Toast from "@/components/Toast";
 import { redirectToSignup } from "@/utils/authRedirect";
 
-// Import Layout with dynamic import to avoid hydration issues
 const Layout = dynamic(() => import("@/components/Layout"), { ssr: false });
 
 interface Variant {
@@ -35,22 +34,42 @@ export default function ProductClient({ product }: { product: Product | null }) 
   const addToCart = useCartStore((state) => state.addToCart);
   const initialized = useCartStore((state) => state.initialized);
   const initializeStore = useCartStore((state) => state.initializeStore);
-  const { isAuthenticated } = useAuth();
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === 'authenticated';
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Set hydrated state and initialize store once the component mounts
+  // Initialize cart store
   useEffect(() => {
     setIsHydrated(true);
-
-    // Initialize the store if it hasn't been initialized yet
     if (!initialized) {
       initializeStore();
     }
   }, [initialized, initializeStore]);
+
+  // Log authentication status on mount and when it changes
+  useEffect(() => {
+    console.log('ProductClient: Authentication status changed', {
+      status,
+      isAuthenticated,
+      sessionExists: !!session
+    });
+
+    // Debug NextAuth session
+    if (typeof window !== 'undefined') {
+      console.log('ProductClient: Checking cookies for NextAuth session');
+      const cookies = document.cookie.split(';');
+      cookies.forEach(cookie => {
+        const trimmed = cookie.trim();
+        if (trimmed.includes('next-auth')) {
+          console.log('ProductClient: Found NextAuth cookie:', trimmed);
+        }
+      });
+    }
+  }, [status, isAuthenticated, session]);
 
   if (!product) {
     return (
@@ -68,62 +87,101 @@ export default function ProductClient({ product }: { product: Product | null }) 
   }
 
   const handleAddToCart = () => {
-    // Check if user is authenticated
     if (!isAuthenticated) {
-      // Redirect to signup page
+      console.log('ProductClient: User not authenticated, redirecting to signup');
       redirectToSignup(window.location.pathname);
       return;
     }
 
-    // Create a product object that matches the expected structure in the cart store
-    const cartProduct = {
-      id: product.id,
-      name: product.name,
-      price: selectedVariant ? selectedVariant.price : product.price,
-      description: product.description,
-      stock: selectedVariant ? selectedVariant.stock : product.stock,
-      images: product.images,
-      variant: selectedVariant
-        ? {
-            id: selectedVariant.id,
-            name: selectedVariant.name,
-            price: selectedVariant.price,
-            stock: selectedVariant.stock,
-            productId: product.id,
-          }
-        : undefined,
-      variantId: selectedVariant ? selectedVariant.id : undefined,
-    };
+    console.log('ProductClient: User is authenticated, adding to cart');
 
-    // Add the product to the cart multiple times based on quantity
-    for (let i = 0; i < quantity; i++) {
-      // Use skipAuthCheck since we already checked authentication
-      addToCart(cartProduct, { skipAuthCheck: true });
+    try {
+      const cartProduct = {
+        id: product.id,
+        name: product.name,
+        price: selectedVariant ? selectedVariant.price : product.price,
+        description: product.description,
+        stock: selectedVariant ? selectedVariant.stock : product.stock,
+        images: product.images,
+        variant: selectedVariant
+          ? {
+              id: selectedVariant.id,
+              name: selectedVariant.name,
+              price: selectedVariant.price,
+              stock: selectedVariant.stock,
+              productId: product.id,
+            }
+          : undefined,
+        variantId: selectedVariant ? selectedVariant.id : undefined,
+      };
+
+      // Pass skipAuthCheck: true to avoid redundant auth check in the cart store
+      // since we've already checked authentication here
+      for (let i = 0; i < quantity; i++) {
+        addToCart(cartProduct, { skipAuthCheck: true });
+      }
+
+      setToastMessage(`${product.name} added to cart!`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      setToastMessage("Failed to add to cart");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
-
-    // Show success toast
-    setToastMessage(`${product.name} added to cart!`);
-    setShowToast(true);
-
-    // Hide toast after 3 seconds
-    setTimeout(() => setShowToast(false), 3000);
   };
 
   const handleBuyNow = () => {
-    // Check if user is authenticated
     if (!isAuthenticated) {
-      // Redirect to signup page
-      redirectToSignup('/checkout');
+      console.log('ProductClient: User not authenticated, redirecting to signup from Buy Now');
+      redirectToSignup('/cart');
       return;
     }
 
-    handleAddToCart();
-    router.push("/cart");
+    console.log('ProductClient: User is authenticated, proceeding with Buy Now');
+
+    try {
+      // Instead of calling handleAddToCart which might trigger another auth check,
+      // let's implement the same logic here with skipAuthCheck set to true
+      const cartProduct = {
+        id: product.id,
+        name: product.name,
+        price: selectedVariant ? selectedVariant.price : product.price,
+        description: product.description,
+        stock: selectedVariant ? selectedVariant.stock : product.stock,
+        images: product.images,
+        variant: selectedVariant
+          ? {
+              id: selectedVariant.id,
+              name: selectedVariant.name,
+              price: selectedVariant.price,
+              stock: selectedVariant.stock,
+              productId: product.id,
+            }
+          : undefined,
+        variantId: selectedVariant ? selectedVariant.id : undefined,
+      };
+
+      // Add to cart with skipAuthCheck
+      for (let i = 0; i < quantity; i++) {
+        // @ts-ignore - We know the function accepts these parameters
+        addToCart(cartProduct, { skipAuthCheck: true });
+      }
+
+      // Navigate to cart
+      router.push("/cart");
+    } catch (error) {
+      console.error('Error with Buy Now:', error);
+      setToastMessage("Failed to process Buy Now");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
   };
 
   return (
     <Layout>
-      {showToast && <Toast message={toastMessage} type="success" />}
+      {showToast && <Toast message={toastMessage} type={toastMessage.includes("Failed") ? "error" : "success"} />}
 
       <div className="rounded-lg bg-white shadow-lg">
         <div className="grid grid-cols-1 gap-8 p-8 md:grid-cols-2">
