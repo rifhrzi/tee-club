@@ -1,10 +1,17 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Header, Footer } from './common';
 import AuthStatus from './AuthStatus';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [isClient, setIsClient] = useState(false);
+
+    // Ensure client-side rendering
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
             <Header />
@@ -14,7 +21,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </div>
             </main>
             <Footer />
-            <AuthStatus />
+            {/* Only render AuthStatus on client side to prevent hydration mismatch */}
+            {isClient && <AuthStatus />}
         </div>
     );
 };

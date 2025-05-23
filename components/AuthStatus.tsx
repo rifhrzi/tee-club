@@ -11,14 +11,20 @@ export default function AuthStatus() {
   // Only run on client side
   useEffect(() => {
     setIsClient(true);
+  }, []);
+
+  // Log authentication state only when status changes and on client side
+  useEffect(() => {
+    if (!isClient) return;
 
     console.log('AuthStatus - Auth State:', {
+      status,
       isAuthenticated: status === 'authenticated',
       user: session?.user ? session.user.email : 'not logged in',
     });
-  }, [status, session]);
+  }, [status, session, isClient]);
 
-  // Don't render anything on server side
+  // Prevent hydration mismatch by not rendering anything on server
   if (!isClient) {
     return null;
   }
@@ -26,7 +32,14 @@ export default function AuthStatus() {
   return (
     <div className="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg z-50 text-sm">
       <h3 className="font-bold mb-2">Auth Status</h3>
-      {status === 'authenticated' && session?.user ? (
+
+      {status === 'loading' ? (
+        // Show loading state
+        <div>
+          <p className="text-blue-600">Loading authentication...</p>
+        </div>
+      ) : status === 'authenticated' && session?.user ? (
+        // Authenticated state
         <div>
           <p className="text-green-600">Logged in as: {session.user.email}</p>
           <div className="mt-2 flex space-x-2">
@@ -37,10 +50,10 @@ export default function AuthStatus() {
               onClick={() => {
                 console.log('AuthStatus: Logout button clicked');
 
-                // Clear any old auth storage
+                // Clear any checkout session data
                 if (typeof window !== 'undefined') {
-                  localStorage.removeItem('auth-storage');
-                  document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+                  localStorage.removeItem('nextauth_checkout_session');
+                  localStorage.removeItem('checkout_form_data');
                 }
 
                 // Call NextAuth signOut
@@ -53,6 +66,7 @@ export default function AuthStatus() {
           </div>
         </div>
       ) : (
+        // Not authenticated state
         <div>
           <p className="text-red-600">Not logged in</p>
           <Link href="/login" className="text-blue-600 hover:underline block mt-2">

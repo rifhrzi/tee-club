@@ -15,25 +15,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
-    // Enforce authentication via x-user-id (set by middleware)
-    const userId = request.headers.get('x-user-id');
-    const authType = request.headers.get('x-auth-type') || 'unknown';
-    const nextAuthUserId = request.headers.get('X-NextAuth-User-ID');
-
     // Log all headers for debugging
     console.log('Checkout API - Request headers:');
     request.headers.forEach((value, key) => {
       console.log(`  ${key}: ${value}`);
     });
 
+    // Enforce authentication via NextAuth (set by middleware)
+    const nextAuthUserId = request.headers.get('x-nextauth-user-id');
+    const nextAuthUserEmail = request.headers.get('x-nextauth-user-email');
+
     console.log('Checkout API - Authentication info:', {
-      'x-user-id': userId,
-      'x-auth-type': authType,
-      'X-NextAuth-User-ID': nextAuthUserId
+      'x-nextauth-user-id': nextAuthUserId,
+      'x-nextauth-user-email': nextAuthUserEmail
     });
 
-    if (!userId) {
-      console.log('Checkout API - No user ID, returning 401');
+    // Check for cookies in the request
+    const cookieHeader = request.headers.get('cookie');
+    if (cookieHeader) {
+      console.log('Checkout API - Request cookies:');
+      cookieHeader.split(';').forEach(cookie => {
+        console.log(`  ${cookie.trim()}`);
+      });
+    }
+
+    if (!nextAuthUserId) {
+      console.log('Checkout API - No NextAuth user ID, returning 401');
       return NextResponse.json({
         error: 'Unauthorized',
         message: 'Authentication required. Please log in to continue with checkout.',
@@ -49,11 +56,11 @@ export async function POST(request: Request) {
 
     // Verify user exists
     const user = await db.user.findUnique({
-      where: { id: userId },
+      where: { id: nextAuthUserId },
     });
 
     if (!user) {
-      console.log('Checkout API - User not found for ID:', userId);
+      console.log('Checkout API - User not found for ID:', nextAuthUserId);
       return NextResponse.json({
         error: 'User not found',
         message: 'The user associated with this authentication could not be found',
@@ -66,7 +73,7 @@ export async function POST(request: Request) {
       });
     }
 
-    console.log('Checkout API - Authenticated user:', user.email, 'using auth type:', authType);
+    console.log('Checkout API - Authenticated user:', user.email);
 
     // Validate request body
     const body = await request.json();

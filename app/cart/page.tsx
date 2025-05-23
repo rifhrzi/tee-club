@@ -7,15 +7,26 @@ import Link from "next/link";
 import { formatPrice } from "@/constants";
 import dynamicImport from "next/dynamic";
 import DirectLoginLink from "@/components/DirectLoginLink";
-import { Variant } from "@/store/types"; // Impor tipe Variant
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useLoading } from "@/contexts/LoadingContext";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import AuthDebugger from "@/components/AuthDebugger";
+import { useAuthSync } from "@/hooks/useAuthSync";
 
 const Layout = dynamicImport(() => import("@/components/Layout"), { ssr: false });
 
 export const dynamic = "force-dynamic";
 
 export default function CartPage() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const { isAuthenticated, isReady, isLoading: authLoading } = useAuthSync();
   // Add state to handle hydration and initialization
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const { startLoading } = useLoading();
 
   // Use the cart store
   const cart = useCartStore((state) => state.cart);
@@ -28,6 +39,7 @@ export default function CartPage() {
   // Set hydrated state and initialize store once the component mounts
   useEffect(() => {
     setIsHydrated(true);
+    setIsClient(true);
 
     // Initialize the store if it hasn't been initialized yet
     if (!initialized) {
@@ -35,23 +47,65 @@ export default function CartPage() {
     }
   }, [initialized, initializeStore]);
 
+  // Check authentication status using the synchronized hook
+  useEffect(() => {
+    if (!isClient || !isReady) return;
+
+    // Debug authentication state
+    console.log('Cart page - Auth state:', {
+      status,
+      isAuthenticated,
+      authLoading,
+      isReady,
+      user: session?.user ? session.user.email : 'not logged in'
+    });
+
+    // Only redirect if we're definitely not authenticated and the auth state is ready
+    if (!isAuthenticated && isReady && !authLoading) {
+      console.log('Cart page requires authentication, redirecting to login');
+      startLoading('Redirecting to login...');
+      router.push('/login?redirect=/cart');
+    }
+  }, [isAuthenticated, isReady, authLoading, session, router, isClient, startLoading]);
+
   const total = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
 
-  // Fungsi untuk memformat variant (used in JSX below)
-  const formatVariant = (variant?: string | Variant) => {
-    if (!variant) return null;
-    if (typeof variant === "string") return variant;
-    return variant.name;
-  };
-
-  // Show loading or empty state while hydrating
-  if (!isHydrated) {
+  // Show loading or authentication state
+  if (!isHydrated || authLoading || !isReady) {
     return (
       <Layout>
         <div className="rounded-lg bg-white p-8 shadow-lg">
           <h1 className="mb-8 text-3xl font-bold text-gray-900">Keranjang Belanja</h1>
           <div className="py-8 text-center">
-            <p className="mb-6 text-gray-600">Memuat keranjang belanja...</p>
+            <div className="flex justify-center mb-4">
+              <LoadingSpinner
+                size="medium"
+                text={
+                  !isHydrated ? "Memuat keranjang belanja..." :
+                  authLoading ? "Memeriksa status login..." :
+                  "Memuat..."
+                }
+              />
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show login prompt for unauthenticated users
+  if (!isAuthenticated && isReady) {
+    return (
+      <Layout>
+        <div className="rounded-lg bg-white p-8 shadow-lg">
+          <h1 className="mb-8 text-3xl font-bold text-gray-900">Keranjang Belanja</h1>
+          <div className="py-8 text-center">
+            <p className="mb-6 text-gray-600">Anda harus login untuk mengakses keranjang belanja.</p>
+            <Link href={`/login?redirect=/cart`}>
+              <button className="rounded-md bg-blue-600 px-6 py-3 font-semibold text-white transition duration-300 hover:bg-blue-700">
+                Login
+              </button>
+            </Link>
           </div>
         </div>
       </Layout>
@@ -126,16 +180,26 @@ export default function CartPage() {
                 >
                   Kosongkan Keranjang
                 </button>
-                <Link href="/checkout" className="inline-block">
-                  <button className="rounded-md bg-blue-600 px-6 py-3 font-semibold text-white transition duration-300 hover:bg-blue-700">
-                    Lanjut ke Pembayaran
+                <DirectLoginLink
+                  className="inline-block"
+                  onNavigationStart={() => {
+                    setIsNavigating(true);
+                    startLoading('Menuju ke halaman pembayaran...');
+                  }}
+                >
+                  <button
+                    className="rounded-md bg-blue-600 px-6 py-3 font-semibold text-white transition duration-300 hover:bg-blue-700 disabled:opacity-50"
+                    disabled={isNavigating}
+                  >
+                    {isNavigating ? 'Memproses...' : 'Lanjut ke Pembayaran'}
                   </button>
-                </Link>
+                </DirectLoginLink>
               </div>
             </div>
           </div>
         )}
       </div>
+      <AuthDebugger />
     </Layout>
   );
 }

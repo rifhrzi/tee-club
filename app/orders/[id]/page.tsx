@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import useAuth from "@/hooks/useAuth";
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { formatPrice } from '@/constants';
 
@@ -70,15 +70,36 @@ interface Order {
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { user, token: accessToken } = useAuth();
+  const { data: session, status } = useSession();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Redirect if not authenticated
-    if (!accessToken || !user) {
-      router.push('/login?redirect=/orders');
+    // Only run on client side
+    const isClient = typeof window !== 'undefined';
+    if (!isClient) return;
+
+    // Debug authentication state
+    console.log('Order Detail Page - Auth state:', {
+      status,
+      isAuthenticated: status === 'authenticated',
+      user: session?.user ? {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name
+      } : null
+    });
+
+    // Only redirect if we're definitely not authenticated (not during loading)
+    if (status === 'unauthenticated') {
+      console.log('Order detail page requires authentication, redirecting to login');
+      router.push(`/login?redirect=/orders/${params.id}`);
+      return;
+    }
+
+    if (status === 'loading') {
+      console.log('Authentication status is loading, waiting...');
       return;
     }
 
@@ -86,28 +107,57 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     const fetchOrderDetails = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/orders/${params.id}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
+        console.log('Order Detail Page - Fetching order details for ID:', params.id);
+
+        // Prepare headers
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json'
+        };
+
+        // Add user ID header for debugging
+        if (session?.user?.id) {
+          headers['x-nextauth-user-id-debug'] = session.user.id;
+        }
+
+        // Log all cookies for debugging
+        console.log('Order Detail Page - Cookies before API request:');
+        document.cookie.split(';').forEach(cookie => {
+          console.log('  ', cookie.trim());
         });
 
+        // NextAuth session is automatically included via cookies
+        const response = await fetch(`/api/orders/${params.id}`, {
+          headers,
+          credentials: 'include' // This ensures cookies are sent with the request
+        });
+
+        console.log('Order Detail Page - API response status:', response.status);
+
         if (!response.ok) {
-          throw new Error('Failed to fetch order details');
+          // Try to parse error response
+          try {
+            const errorData = await response.json();
+            console.error('Order Detail Page - API error:', errorData);
+            throw new Error(errorData.message || 'Failed to fetch order details');
+          } catch (parseError) {
+            console.error('Order Detail Page - Error parsing error response:', parseError);
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+          }
         }
 
         const data = await response.json();
+        console.log('Order Detail Page - Order data received successfully');
         setOrder(data.order);
       } catch (err) {
         console.error('Error fetching order details:', err);
-        setError('Failed to load order details. Please try again later.');
+        setError(err instanceof Error ? err.message : 'Failed to load order details. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchOrderDetails();
-  }, [accessToken, user, router, params.id]);
+  }, [status, session, router, params.id]);
 
   // Helper function to get order status text with description
   const getOrderStatusInfo = (status: string) => {

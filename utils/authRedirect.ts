@@ -10,13 +10,20 @@
 export const redirectToSignup = (redirectPath: string = window.location.pathname): boolean => {
   // Only run on client side
   if (typeof window === 'undefined') return false;
-  
+
   // Store the current path for redirection after login
   localStorage.setItem('auth_redirect', redirectPath);
-  
+
+  // Store any cart data for restoration after login
+  const cartData = localStorage.getItem('cart-storage');
+  if (cartData) {
+    localStorage.setItem('pending_cart_data', cartData);
+    console.log('Stored cart data for restoration after login');
+  }
+
   // Redirect to signup page
   window.location.href = '/signup';
-  
+
   return true;
 };
 
@@ -27,7 +34,7 @@ export const redirectToSignup = (redirectPath: string = window.location.pathname
 export const getStoredRedirectPath = (): string | null => {
   // Only run on client side
   if (typeof window === 'undefined') return null;
-  
+
   return localStorage.getItem('auth_redirect');
 };
 
@@ -37,6 +44,6 @@ export const getStoredRedirectPath = (): string | null => {
 export const clearStoredRedirectPath = (): void => {
   // Only run on client side
   if (typeof window === 'undefined') return;
-  
+
   localStorage.removeItem('auth_redirect');
 };

@@ -5,6 +5,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { formatPrice } from "@/constants";
+import QuickAddToCart from "@/components/QuickAddToCart";
+import AuthDebugger from "@/components/AuthDebugger";
 import {
   MagnifyingGlassIcon,
   Squares2X2Icon,
@@ -171,8 +173,12 @@ export default function ShopClient({ products }: { products: Product[] }) {
                         </span>
                       </div>
                     </div>
+                    {/* Add QuickAddToCart component outside of Link */}
                   </div>
                 </Link>
+                <div className="p-4 pt-0">
+                  <QuickAddToCart product={product} />
+                </div>
               </div>
             ))}
           </div>
@@ -209,6 +215,7 @@ export default function ShopClient({ products }: { products: Product[] }) {
           )}
         </div>
       </div>
+      <AuthDebugger />
     </Layout>
   );
 }

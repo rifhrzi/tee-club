@@ -9,6 +9,10 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Toast from "@/components/Toast";
 import { redirectToSignup } from "@/utils/authRedirect";
+import { useLoading } from "@/contexts/LoadingContext";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import LoadingButton from "@/components/LoadingButton";
+import AuthDebugger from "@/components/AuthDebugger";
 
 const Layout = dynamic(() => import("@/components/Layout"), { ssr: false });
 
@@ -41,6 +45,7 @@ export default function ProductClient({ product }: { product: Product | null }) 
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isHydrated, setIsHydrated] = useState(false);
+  const { startLoading, stopLoading } = useLoading();
 
   // Initialize cart store
   useEffect(() => {
@@ -87,8 +92,29 @@ export default function ProductClient({ product }: { product: Product | null }) 
   }
 
   const handleAddToCart = () => {
+    // Enhanced debugging for authentication state
+    console.log('ProductClient: handleAddToCart called');
+    console.log('ProductClient: Authentication state:', {
+      status,
+      isAuthenticated,
+      sessionExists: !!session,
+      userEmail: session?.user?.email || 'none'
+    });
+
+    // Don't proceed if session is still loading
+    if (status === 'loading') {
+      console.log('ProductClient: Session still loading, please wait...');
+      return;
+    }
+
+    // Debug cookies
+    if (typeof window !== 'undefined') {
+      console.log('ProductClient: Current cookies:', document.cookie);
+    }
+
     if (!isAuthenticated) {
       console.log('ProductClient: User not authenticated, redirecting to signup');
+      startLoading('Redirecting to login...');
       redirectToSignup(window.location.pathname);
       return;
     }
@@ -115,10 +141,12 @@ export default function ProductClient({ product }: { product: Product | null }) 
         variantId: selectedVariant ? selectedVariant.id : undefined,
       };
 
-      // Pass skipAuthCheck: true to avoid redundant auth check in the cart store
-      // since we've already checked authentication here
+      // Add to cart (skip auth check since we already verified authentication)
       for (let i = 0; i < quantity; i++) {
-        addToCart(cartProduct, { skipAuthCheck: true });
+        addToCart(cartProduct, {
+          currentPath: window.location.pathname,
+          skipAuthCheck: true
+        });
       }
 
       setToastMessage(`${product.name} added to cart!`);
@@ -133,8 +161,24 @@ export default function ProductClient({ product }: { product: Product | null }) 
   };
 
   const handleBuyNow = () => {
+    // Enhanced debugging for authentication state
+    console.log('ProductClient: handleBuyNow called');
+    console.log('ProductClient: Authentication state:', {
+      status,
+      isAuthenticated,
+      sessionExists: !!session,
+      userEmail: session?.user?.email || 'none'
+    });
+
+    // Don't proceed if session is still loading
+    if (status === 'loading') {
+      console.log('ProductClient: Session still loading, please wait...');
+      return;
+    }
+
     if (!isAuthenticated) {
       console.log('ProductClient: User not authenticated, redirecting to signup from Buy Now');
+      startLoading('Redirecting to login...');
       redirectToSignup('/cart');
       return;
     }
@@ -163,10 +207,12 @@ export default function ProductClient({ product }: { product: Product | null }) 
         variantId: selectedVariant ? selectedVariant.id : undefined,
       };
 
-      // Add to cart with skipAuthCheck
+      // Add to cart (skip auth check since we already verified authentication)
       for (let i = 0; i < quantity; i++) {
-        // @ts-ignore - We know the function accepts these parameters
-        addToCart(cartProduct, { skipAuthCheck: true });
+        addToCart(cartProduct, {
+          currentPath: '/cart',
+          skipAuthCheck: true
+        });
       }
 
       // Navigate to cart
@@ -182,6 +228,7 @@ export default function ProductClient({ product }: { product: Product | null }) 
   return (
     <Layout>
       {showToast && <Toast message={toastMessage} type={toastMessage.includes("Failed") ? "error" : "success"} />}
+      <AuthDebugger />
 
       <div className="rounded-lg bg-white shadow-lg">
         <div className="grid grid-cols-1 gap-8 p-8 md:grid-cols-2">
@@ -256,18 +303,24 @@ export default function ProductClient({ product }: { product: Product | null }) 
             </div>
 
             <div className="flex space-x-4 border-t border-gray-200 pt-6">
-              <button
-                className="flex-1 rounded-md bg-blue-600 px-6 py-3 font-semibold text-white transition duration-300 hover:bg-blue-700"
+              <LoadingButton
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
                 onClick={handleAddToCart}
+                isLoading={false}
+                loadingText="Adding..."
+                disabled={status === 'loading'}
               >
-                Add to Cart
-              </button>
-              <button
-                className="flex-1 rounded-md bg-green-600 px-6 py-3 font-semibold text-white transition duration-300 hover:bg-green-700"
+                {status === 'loading' ? 'Checking auth...' : 'Add to Cart'}
+              </LoadingButton>
+              <LoadingButton
+                className="flex-1 bg-green-600 hover:bg-green-700"
                 onClick={handleBuyNow}
+                isLoading={false}
+                loadingText="Processing..."
+                disabled={status === 'loading'}
               >
-                Buy Now
-              </button>
+                {status === 'loading' ? 'Checking auth...' : 'Buy Now'}
+              </LoadingButton>
             </div>
           </div>
         </div>

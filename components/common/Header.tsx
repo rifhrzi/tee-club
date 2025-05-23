@@ -8,17 +8,31 @@ import { SITE_CONFIG, NAVIGATION } from "../../constants";
 
 export const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const { data: session, status } = useSession();
-  const isAuthenticated = status === 'authenticated';
+
+  // Only consider authenticated if we have a session and we're not in the loading state
+  const isAuthenticated = status === 'authenticated' && !!session;
   const user = session?.user;
 
-  // Debug: Log authentication state
+  // Set client-side rendering flag
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Debug: Log authentication state only on client side and when status changes
+  useEffect(() => {
+    if (!isClient) return;
+
     console.log('Header - Auth State:', {
+      status,
       isLoggedIn: isAuthenticated,
       user: user ? user.email : 'not logged in'
     });
-  }, [user, isAuthenticated]);
+  }, [status, user, isAuthenticated, isClient]);
+
+  // Always show loading state until client is ready and auth is resolved
+  const showAuthLoading = !isClient || status === 'loading';
 
   return (
     <header className="sticky top-0 z-50 border-b bg-white">
@@ -43,18 +57,26 @@ export const Header = () => {
                   {item.name}
                 </Link>
               ))}
-              {!isAuthenticated ? (
+
+              {/* Auth UI with immediate loading state */}
+              {showAuthLoading ? (
+                // Show loading state immediately
+                <div className="rounded-lg bg-gray-100 px-4 py-2 text-gray-500">
+                  Loading...
+                </div>
+              ) : !isAuthenticated ? (
+                // Not authenticated
                 <Link
                   href="/login"
                   className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
-                  onClick={(e) => {
+                  onClick={() => {
                     console.log('Header: Login button clicked');
-                    // No need to prevent default, let the Link handle navigation
                   }}
                 >
                   Sign In
                 </Link>
               ) : (
+                // Authenticated
                 <div className="flex items-center space-x-4">
                   <Link
                     href="/orders"
@@ -66,10 +88,10 @@ export const Header = () => {
                     onClick={() => {
                       console.log('Header: Sign Out button clicked');
 
-                      // Clear any old auth storage
+                      // Clear any checkout session data
                       if (typeof window !== 'undefined') {
-                        localStorage.removeItem('auth-storage');
-                        document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+                        localStorage.removeItem('nextauth_checkout_session');
+                        localStorage.removeItem('checkout_form_data');
                       }
 
                       // Call NextAuth signOut

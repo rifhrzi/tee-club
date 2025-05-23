@@ -2,13 +2,58 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { Product, CartItem } from "./types";
-import * as ls from "../utils/localStorage";
 import { redirectToSignup } from "../utils/authRedirect";
+
+// Browser detection
+const isBrowser = typeof window !== 'undefined';
+
+// Check if localStorage is available
+function isLocalStorageAvailable(): boolean {
+  if (!isBrowser) return false;
+
+  try {
+    const testKey = '__test__';
+    localStorage.setItem(testKey, testKey);
+    localStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Debug localStorage
+function debugLocalStorage(): void {
+  if (!isBrowser) return;
+
+  try {
+    console.log('--- localStorage Debug ---');
+    console.log('localStorage available:', isLocalStorageAvailable());
+
+    if (isLocalStorageAvailable()) {
+      console.log('localStorage keys:');
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          try {
+            const value = localStorage.getItem(key);
+            console.log(`${key}:`, value);
+          } catch (error) {
+            console.error(`Error getting value for key ${key}:`, error);
+          }
+        }
+      }
+    }
+
+    console.log('------------------------');
+  } catch (error) {
+    console.error('Error debugging localStorage:', error);
+  }
+}
 
 interface CartState {
   cart: CartItem[];
   initialized: boolean;
-  addToCart: (product: Product, options?: { skipAuthCheck?: boolean, currentPath?: string }) => void;
+  addToCart: (product: Product, options?: { currentPath?: string, skipAuthCheck?: boolean }) => void;
   removeFromCart: (productId: string | number) => void;
   updateQuantity: (productId: string | number, quantity: number) => void;
   clearCart: () => void;
@@ -25,7 +70,7 @@ const useCartStore = create<CartState>()(
 
       initializeStore: () => {
         // Only run on client side
-        if (!ls.isBrowser) return;
+        if (!isBrowser) return;
 
         // Check if we've already initialized
         if (get().initialized) return;
@@ -33,7 +78,7 @@ const useCartStore = create<CartState>()(
         console.log('CartStore: Initializing store');
 
         // Check if localStorage is available
-        if (!ls.isLocalStorageAvailable()) {
+        if (!isLocalStorageAvailable()) {
           console.error('CartStore: localStorage is not available');
           set({ initialized: true });
           return;
@@ -65,55 +110,64 @@ const useCartStore = create<CartState>()(
         console.log('CartStore Debug:');
         console.log('- Cart items:', get().cart.length);
         console.log('- Initialized:', get().initialized);
-        ls.debugLocalStorage();
+        debugLocalStorage();
       },
 
-      addToCart: (product: Product, options: { skipAuthCheck?: boolean, currentPath?: string } = {}) => {
+      addToCart: (product: Product, options: { currentPath?: string, skipAuthCheck?: boolean } = {}) => {
         console.log('CartStore: addToCart called with options:', options);
 
-        // Skip auth check if explicitly requested (for internal use only)
-        if (!options.skipAuthCheck) {
+        // Skip authentication check if explicitly requested (for authenticated users)
+        if (options.skipAuthCheck) {
+          console.log('CartStore: Skipping authentication check as requested');
+        } else {
           console.log('CartStore: Performing authentication check');
 
-          // For NextAuth, we'll rely on the authentication check done in the component
-          // that calls this function. The component should check session status before
-          // calling addToCart.
+          // Always check for authentication
+          if (isBrowser) {
+            // Debug: Log all cookies
+            console.log('CartStore: All cookies:', document.cookie);
 
-          // This is kept for backward compatibility with any code that might
-          // call addToCart directly without checking authentication first
+            // Check for NextAuth cookies with more comprehensive patterns
+            const cookies = document.cookie.split(';');
+            const nextAuthCookiePatterns = [
+              'next-auth.session-token',
+              '__Secure-next-auth.session-token',
+              '__Host-next-auth.session-token',
+              'next-auth.csrf-token',
+              '__Secure-next-auth.csrf-token',
+              '__Host-next-auth.csrf-token'
+            ];
 
-          // Check if user is authenticated using our utility function
-          let isAuthenticated = ls.isNextAuthAuthenticated();
-          console.log('CartStore: NextAuth authentication check result:', isAuthenticated);
+            // Check if any NextAuth cookie exists
+            let hasNextAuthCookie = false;
+            let foundCookies = [];
 
-          // Also check the old auth storage for backward compatibility
-          if (!isAuthenticated && ls.isBrowser) {
-            console.log('CartStore: Checking old auth storage as fallback');
-            const authStorage = localStorage.getItem('auth-storage');
-            if (authStorage) {
-              try {
-                const authData = JSON.parse(authStorage);
-                isAuthenticated = authData.state?.isAuthenticated || false;
-                console.log('CartStore: Old auth storage check result:', isAuthenticated);
-              } catch (e) {
-                console.error('Error parsing auth storage:', e);
+            for (const cookie of cookies) {
+              const trimmedCookie = cookie.trim();
+              for (const pattern of nextAuthCookiePatterns) {
+                if (trimmedCookie.startsWith(`${pattern}=`) && trimmedCookie.length > pattern.length + 1) {
+                  hasNextAuthCookie = true;
+                  foundCookies.push(pattern);
+                  break;
+                }
               }
+            }
+
+            console.log('CartStore: NextAuth cookies found:', foundCookies);
+            console.log('CartStore: NextAuth cookie check result:', hasNextAuthCookie);
+
+            // If no NextAuth cookie found, redirect to login
+            if (!hasNextAuthCookie) {
+              console.log('CartStore: User not authenticated, redirecting to login');
+              redirectToSignup(options.currentPath || window.location.pathname);
+              return;
             }
           }
 
-          // If not authenticated, redirect to signup and don't add to cart
-          if (!isAuthenticated) {
-            console.log('CartStore: User not authenticated, redirecting to signup');
-            redirectToSignup(options.currentPath || (ls.isBrowser ? window.location.pathname : '/'));
-            return;
-          }
-
           console.log('CartStore: User is authenticated, proceeding with adding to cart');
-        } else {
-          console.log('CartStore: Skipping authentication check as requested');
         }
 
-        // If authenticated or skipAuthCheck is true, proceed with adding to cart
+        // If authenticated, proceed with adding to cart
         set((state) => {
           const existingItem = state.cart.find(
             (item: CartItem) => item.product.id === product.id
@@ -153,7 +207,7 @@ const useCartStore = create<CartState>()(
       name: "cart-storage",
       storage: createJSONStorage(() => {
         // Only use localStorage in browser environment
-        return ls.isBrowser ? {
+        return isBrowser ? {
           getItem: (name) => {
             try {
               return localStorage.getItem(name);
@@ -192,7 +246,7 @@ const useCartStore = create<CartState>()(
 );
 
 // Initialize the store when this module is imported on the client side
-if (ls.isBrowser) {
+if (isBrowser) {
   // Use setTimeout to ensure this runs after hydration
   setTimeout(() => {
     useCartStore.getState().initializeStore();

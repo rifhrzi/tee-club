@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { getStoredRedirectPath, clearStoredRedirectPath } from "@/utils/authRedirect";
+import { useLoading } from "@/contexts/LoadingContext";
+import LoadingButton from "@/components/LoadingButton";
 
 interface ApiResponse {
   error?: string;
@@ -29,6 +31,7 @@ export default function SignUpPage() {
     password: "",
     confirmPassword: "",
   });
+  const { startLoading, stopLoading } = useLoading();
 
   // Check for redirect path on component mount
   useEffect(() => {
@@ -42,10 +45,12 @@ export default function SignUpPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    startLoading('Creating your account...');
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
+      stopLoading();
       return;
     }
 
@@ -98,6 +103,7 @@ export default function SignUpPage() {
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
+      stopLoading();
     }
   };
 
@@ -201,13 +207,14 @@ export default function SignUpPage() {
           </div>
 
           <div>
-            <button
+            <LoadingButton
               type="submit"
-              disabled={loading}
-              className="group relative flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:bg-indigo-400"
+              isLoading={loading}
+              loadingText="Creating account..."
+              className="w-full bg-indigo-600 hover:bg-indigo-500 focus:ring-indigo-500"
             >
-              {loading ? 'Creating account...' : 'Sign up'}
-            </button>
+              Sign up
+            </LoadingButton>
           </div>
         </form>
       </div>

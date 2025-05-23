@@ -1,4 +1,53 @@
-export const SITE_CONFIG = {
+// Type definitions
+export interface SiteConfig {
+  readonly name: string;
+  readonly description: string;
+  readonly social: {
+    readonly instagram: string;
+    readonly twitter: string;
+    readonly facebook: string;
+  };
+}
+
+export interface NavigationItem {
+  readonly name: string;
+  readonly href: string;
+}
+
+export interface NavigationConfig {
+  readonly main: ReadonlyArray<NavigationItem>;
+  readonly footer: ReadonlyArray<NavigationItem>;
+  readonly legal: ReadonlyArray<NavigationItem>;
+}
+
+export interface ProductVariant {
+  readonly size: string;
+  readonly color: string;
+}
+
+export interface Product {
+  readonly id: string | number;
+  readonly name: string;
+  readonly description: string;
+  readonly price: number;
+  readonly stock: number;
+  readonly images: ReadonlyArray<string>;
+  readonly image?: string; // For backward compatibility
+  readonly sizes?: ReadonlyArray<string>; // For backward compatibility
+  readonly variant?: string | ProductVariant;
+  readonly variantId?: string;
+}
+
+export interface ProductsConfig {
+  readonly newArrivals: ReadonlyArray<Product>;
+  readonly featured: {
+    readonly main: string;
+    readonly grid: ReadonlyArray<string>;
+  };
+}
+
+// Constants with proper type annotations
+export const SITE_CONFIG: SiteConfig = {
   name: "Teelite Club",
   description: "Premium quality t-shirts designed for style and comfort.",
   social: {
@@ -8,7 +57,7 @@ export const SITE_CONFIG = {
   },
 };
 
-export const NAVIGATION = {
+export const NAVIGATION: NavigationConfig = {
   main: [
     { name: "Home", href: "/" },
     { name: "Shop", href: "/shop" },
@@ -29,7 +78,7 @@ export const NAVIGATION = {
 };
 
 // Utility function to format price in Rupiah
-export const formatPrice = (price: number) => {
+export const formatPrice = (price: number): string => {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
@@ -38,28 +87,7 @@ export const formatPrice = (price: number) => {
   }).format(price);
 };
 
-export interface ProductVariant {
-  size: string;
-  color: string;
-}
-
-export interface Product {
-  id: string | number;
-  name: string;
-  description: string;
-  price: number;
-  stock: number;
-  images: string[];
-  image?: string; // For backward compatibility
-  sizes?: string[]; // For backward compatibility
-  variant?: string | {
-    size: string;
-    color: string;
-  };
-  variantId?: string;
-}
-
-export const PRODUCTS = {
+export const PRODUCTS: ProductsConfig = {
   newArrivals: [
     {
       id: 1,

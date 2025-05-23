@@ -5,27 +5,51 @@ import { db } from "@/lib/db";
 
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const userId = request.headers.get("x-user-id");
-    console.log("Orders API - x-user-id:", userId);
+    console.log("API: /api/orders/[id] - Request received for order ID:", context.params.id);
 
-    if (!userId) {
-      console.log("Orders API - No user ID, returning 401");
-      return NextResponse.json({ error: "Unauthorized", message: "Authentication required" }, { status: 401 });
+    // Log all headers for debugging
+    console.log("API: /api/orders/[id] - Request headers:");
+    const headers: Record<string, string> = {};
+    request.headers.forEach((value, key) => {
+      headers[key] = value;
+      console.log(`  ${key}: ${value}`);
+    });
+
+    // Get user ID from NextAuth middleware-set header
+    const nextAuthUserId = request.headers.get("x-nextauth-user-id");
+
+    console.log("API: /api/orders/[id] - Authentication info:", {
+      "x-nextauth-user-id": nextAuthUserId
+    });
+
+    if (!nextAuthUserId) {
+      console.log("API: /api/orders/[id] - No NextAuth user ID, returning 401");
+      return NextResponse.json({
+        error: "Unauthorized",
+        message: "No valid authentication found. Please log in."
+      }, { status: 401 });
     }
 
+    // Verify user exists
     const user = await db.user.findUnique({
-      where: { id: userId },
+      where: { id: nextAuthUserId },
     });
 
     if (!user) {
-      console.log("Orders API - User not found for ID:", userId);
-      return NextResponse.json({ error: "User not found", message: "The user associated with this authentication could not be found" }, { status: 404 });
+      console.log("API: /api/orders/[id] - User not found for ID:", nextAuthUserId);
+      return NextResponse.json({
+        error: "User not found",
+        message: "The user associated with this authentication could not be found."
+      }, { status: 404 });
     }
 
+    console.log("API: /api/orders/[id] - User found:", user.email);
+
+    console.log("API: /api/orders/[id] - Fetching order for user ID:", nextAuthUserId);
     const order = await db.order.findUnique({
       where: {
         id: context.params.id,
-        userId: user.id,
+        userId: nextAuthUserId,
       },
       include: {
         items: {
@@ -45,15 +69,20 @@ export async function GET(request: NextRequest, context: { params: { id: string 
     });
 
     if (!order) {
-      console.log("Orders API - Order not found for ID:", context.params.id);
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      console.log("API: /api/orders/[id] - Order not found for ID:", context.params.id);
+      return NextResponse.json({
+        error: "Order not found",
+        message: "The requested order could not be found or does not belong to your account."
+      }, { status: 404 });
     }
 
-    console.log("Orders API - Order fetched for user:", user.email);
+    console.log("API: /api/orders/[id] - Order fetched successfully for user:", user.email);
     return NextResponse.json({ order });
   } catch (error) {
-    console.error("Orders API - Error fetching order:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: "Failed to fetch order", message: errorMessage }, { status: 500 });
+    console.error("API: /api/orders/[id] - Error fetching order:", error);
+    return NextResponse.json({
+      error: "Failed to fetch order",
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    }, { status: 500 });
   }
 }

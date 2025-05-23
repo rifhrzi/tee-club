@@ -7,12 +7,23 @@ export async function GET(request: Request) {
   try {
     console.log("API: /api/orders - Request received");
 
-    // Get user ID from middleware-set header
-    const userId = request.headers.get("x-user-id");
-    console.log("API: /api/orders - x-user-id:", userId);
+    // Log all headers for debugging
+    console.log("API: /api/orders - Request headers:");
+    const headers: Record<string, string> = {};
+    request.headers.forEach((value, key) => {
+      headers[key] = value;
+      console.log(`  ${key}: ${value}`);
+    });
 
-    if (!userId) {
-      console.log("API: /api/orders - No user ID, returning 401");
+    // Get user ID from NextAuth middleware-set header
+    const nextAuthUserId = request.headers.get("x-nextauth-user-id");
+
+    console.log("API: /api/orders - Authentication info:", {
+      "x-nextauth-user-id": nextAuthUserId
+    });
+
+    if (!nextAuthUserId) {
+      console.log("API: /api/orders - No NextAuth user ID, returning 401");
       return NextResponse.json({
         error: "Unauthorized",
         message: "No valid authentication found. Please log in."
@@ -21,11 +32,11 @@ export async function GET(request: Request) {
 
     // Verify user exists
     const user = await db.user.findUnique({
-      where: { id: userId },
+      where: { id: nextAuthUserId },
     });
 
     if (!user) {
-      console.log("API: /api/orders - User not found for ID:", userId);
+      console.log("API: /api/orders - User not found for ID:", nextAuthUserId);
       return NextResponse.json({
         error: "User not found",
         message: "The user associated with this authentication could not be found."
@@ -35,9 +46,9 @@ export async function GET(request: Request) {
     console.log("API: /api/orders - User found:", user.email);
 
     // Fetch orders
-    console.log("API: /api/orders - Fetching orders for user ID:", userId);
+    console.log("API: /api/orders - Fetching orders for user ID:", nextAuthUserId);
     const orders = await db.order.findMany({
-      where: { userId },
+      where: { userId: nextAuthUserId },
       orderBy: { createdAt: "desc" },
       include: {
         items: {

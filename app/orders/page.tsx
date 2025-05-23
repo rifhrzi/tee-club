@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import useAuth from '@/hooks/useAuth';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { formatPrice } from '@/constants';
 
@@ -56,29 +56,30 @@ interface Order {
 
 export default function OrdersPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { data: session, status } = useSession();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isClient, setIsClient] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
+  // Derived authentication state
+  const isAuthenticated = status === 'authenticated' && !!session;
+  const user = session?.user;
+
   // Set client-side rendering flag and check for pending order
   useEffect(() => {
     setIsClient(true);
 
-    // For debugging: Add token to URL if we're authenticated
-    if (typeof window !== 'undefined' && isAuthenticated) {
-      const { token } = useAuth.getState();
-      if (token) {
-        // Check if we already have a token in the URL
-        const urlParams = new URLSearchParams(window.location.search);
-        if (!urlParams.has('token')) {
-          // Add token to URL for debugging
-          const newUrl = `${window.location.pathname}?token=${token}`;
-          window.history.replaceState({}, '', newUrl);
-          console.log('Orders Page - Added token to URL for debugging');
-        }
+    // For debugging: Add session info to URL if we're authenticated
+    if (typeof window !== 'undefined' && isAuthenticated && session?.user?.id) {
+      // Check if we already have a user ID in the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      if (!urlParams.has('user')) {
+        // Add user ID to URL for debugging
+        const newUrl = `${window.location.pathname}?user=${session.user.id}`;
+        window.history.replaceState({}, '', newUrl);
+        console.log('Orders Page - Added user ID to URL for debugging');
       }
     }
 
@@ -125,7 +126,13 @@ export default function OrdersPage() {
       user: user ? user.email : 'not logged in'
     });
 
-    // For guest users, show a message instead of redirecting
+    // For guest users or during loading, show appropriate UI
+    if (status === 'loading') {
+      console.log('Orders Page - Authentication status is loading, waiting...');
+      // We'll show loading state in the UI
+      return;
+    }
+
     if (!isAuthenticated && !pendingOrderId) {
       console.log('Orders Page - Not authenticated and no pending order, showing guest message');
       setLoading(false);
@@ -144,21 +151,29 @@ export default function OrdersPage() {
           // Fetch authenticated user's orders
           console.log('Orders Page - Fetching orders for authenticated user');
 
-          // Get the token from auth state
-          const { token } = useAuth.getState();
-          console.log('Orders Page - Auth token available:', !!token);
-
-          // Add the token to the request headers
+          // NextAuth session is automatically included via cookies
+          // No need to manually add authorization headers
           const headers: HeadersInit = {
             'Content-Type': 'application/json'
           };
 
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-            console.log('Orders Page - Adding Authorization header with token');
-          } else {
-            console.log('Orders Page - No token available, proceeding without Authorization header');
+          // Add user ID header for debugging
+          if (user?.id) {
+            headers['x-nextauth-user-id-debug'] = user.id;
           }
+
+          console.log('Orders Page - Using NextAuth session for authentication');
+          console.log('Orders Page - Session data:', {
+            id: session?.user?.id,
+            email: session?.user?.email,
+            name: session?.user?.name
+          });
+
+          // Log all cookies for debugging
+          console.log('Orders Page - Cookies before API request:');
+          document.cookie.split(';').forEach(cookie => {
+            console.log('  ', cookie.trim());
+          });
 
           // Add credentials to include cookies
           const response = await fetch('/api/orders', {

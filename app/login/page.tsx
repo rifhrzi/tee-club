@@ -1,3 +1,4 @@
+// app/login/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -5,29 +6,41 @@ import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { clearStoredRedirectPath } from '@/utils/authRedirect';
+// import { useLoading } from '@/contexts/LoadingContext'; // Keep if used for other global loading indicators
+import LoadingButton from '@/components/LoadingButton';
 
 function UserLogin() {
   const { data: session, status } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [redirectPath, setRedirectPath] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Renamed local loading state for clarity
+
+  // const pageLoadingContext = useLoading(); // Only if you need its other functionalities
+
+  const [determinedRedirectPath, setDeterminedRedirectPath] = useState<string>('/');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams?.get('callbackUrl') || '/';
-  const authError = searchParams?.get('error');
 
-  // Check for redirect path on component mount
+  // ... (useEffect for determinedRedirectPath and authErrorParam remains the same) ...
   useEffect(() => {
-    const storedRedirect = localStorage.getItem('login_redirect');
-    if (storedRedirect) {
-      setRedirectPath(storedRedirect);
-    }
+    const urlRedirect = searchParams?.get('redirect');
+    const storedRedirect = typeof window !== 'undefined' ? localStorage.getItem('auth_redirect') : null;
+    const legacyRedirect = typeof window !== 'undefined' ? localStorage.getItem('login_redirect') : null;
 
-    // Check for error in URL
-    if (authError) {
-      switch (authError) {
+    const finalRedirect = urlRedirect || storedRedirect || legacyRedirect || '/';
+    setDeterminedRedirectPath(finalRedirect);
+
+    console.log('Login page: Determined redirect path:', {
+      urlRedirect,
+      storedRedirect,
+      legacyRedirect,
+      finalRedirectCalculated: finalRedirect
+    });
+
+    const authErrorParam = searchParams?.get('error');
+    if (authErrorParam) {
+      switch (authErrorParam) {
         case 'CredentialsSignin':
           setError('Invalid email or password. Please try again.');
           break;
@@ -35,91 +48,94 @@ function UserLogin() {
           setError('An error occurred during sign in. Please try again.');
       }
     }
-  }, [authError]);
+  }, [searchParams]);
 
-  // Clear any previous errors when inputs change
   useEffect(() => {
     if (error) setError('');
   }, [email, password]);
 
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Basic validation
     if (!email || !password) {
       setError('Email and password are required');
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true); // Use local state
     setError('');
+    // pageLoadingContext.startLoading('Signing in...'); // Remove if using local state primarily
 
     try {
-      console.log('Login page: Attempting to log in with:', email);
-
-      // Use NextAuth signIn
       const result = await signIn('credentials', {
         redirect: false,
         email,
         password,
       });
 
-      console.log('Login page: Sign in result:', result);
-
       if (result?.error) {
-        throw new Error(result.error);
-      }
-
-      if (result?.ok) {
-        console.log('Login page: Login successful, redirecting...');
-
-        // Clear any stored redirect paths
-        const redirectTo = redirectPath || callbackUrl || '/';
-        localStorage.removeItem('login_redirect');
-        clearStoredRedirectPath();
-
-        // Redirect after a short delay
-        setTimeout(() => {
-          router.push(redirectTo);
-          router.refresh();
-        }, 500);
-      }
-    } catch (error) {
-      console.error('Login page: Login error:', error);
-
-      if (error instanceof Error) {
-        // Extract specific error message if available
-        const errorMessage = error.message || 'Login failed. Please check your credentials.';
-
-        if (errorMessage.includes('CredentialsSignin')) {
-          setError('The email or password you entered is incorrect. Please try again.');
-        } else if (errorMessage.includes('Too many login attempts')) {
-          setError('Too many login attempts. Please try again later.');
+        if (result.error === 'CredentialsSignin') {
+            setError('The email or password you entered is incorrect. Please try again.');
+        } else if (result.error.includes('Too many login attempts')) {
+            setError('Too many login attempts. Please try again later.');
         } else {
-          setError(errorMessage);
+            setError(result.error || 'Login failed. Please check your credentials.');
         }
+        // No return here, finally block will run
+      } else if (result?.ok) { // Check for ok and no error explicitly
+        console.log('Login page: Login successful. Determined redirect path for success:', determinedRedirectPath);
+
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('login_redirect');
+          localStorage.removeItem('auth_redirect');
+          if (clearStoredRedirectPath) clearStoredRedirectPath();
+
+          const pendingCartData = localStorage.getItem('pending_cart_data');
+          if (pendingCartData) {
+            localStorage.setItem('cart-storage', pendingCartData);
+            localStorage.removeItem('pending_cart_data');
+          }
+        }
+        router.push(determinedRedirectPath);
+        // No setIsSubmitting(false) here if navigating away.
+        return; // Successfully navigated, exit function.
       } else {
-        setError('Login failed. Please check your credentials.');
+        // Handle cases where result is not ok but no specific error string from NextAuth perhaps
+         setError(result?.error || 'An unknown issue occurred during login.');
       }
+    } catch (error: any) {
+      console.error('Login page: Login error (catch block):', error);
+      setError(error.message || 'An unexpected error occurred.');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false); // Set to false in finally for all paths
+      // pageLoadingContext.stopLoading(); // Remove if using local state primarily
     }
   };
 
-  // Redirect if already authenticated
+  // ... (useEffect for status === 'authenticated' remains largely the same, using determinedRedirectPath) ...
+  // Ensure it does not conflict with isSubmitting
   useEffect(() => {
-    if (status === 'authenticated' && session) {
-      console.log('Login page: User already authenticated, redirecting...');
-
-      // Check if there's a redirect in the URL
-      const urlRedirect = searchParams?.get('callbackUrl');
-      const finalRedirect = urlRedirect || redirectPath || '/';
-
-      // Redirect to the appropriate path
-      router.push(finalRedirect);
-      router.refresh();
+    if (status === 'loading') {
+      return; 
     }
-  }, [status, session, router, searchParams, redirectPath]);
+
+    if (status === 'authenticated' && session) {
+      console.log('Login page: User already authenticated. Determined redirect path:', determinedRedirectPath);
+
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('login_redirect');
+        localStorage.removeItem('auth_redirect');
+        if (clearStoredRedirectPath) clearStoredRedirectPath();
+
+        const pendingCartData = localStorage.getItem('pending_cart_data');
+        if (pendingCartData) {
+            localStorage.setItem('cart-storage', pendingCartData);
+            localStorage.removeItem('pending_cart_data');
+        }
+      }
+      router.push(determinedRedirectPath);
+    }
+  }, [status, session, router, determinedRedirectPath]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -131,67 +147,64 @@ function UserLogin() {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email-address" className="sr-only">Email address</label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="flex">
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">{error}</h3>
+          {/* ... form inputs ... */}
+           <div className="rounded-md shadow-sm -space-y-px">
+              <div>
+                <label htmlFor="email-address" className="sr-only">Email address</label>
+                <input
+                  id="email-address"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="sr-only">Password</label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+             {error && (
+              <div className="rounded-md bg-red-50 p-4">
+                <div className="flex">
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">{error}</h3>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-
+            )}
           <div>
-            <button
+            <LoadingButton
               type="submit"
-              disabled={isLoading}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                isLoading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+              isLoading={isSubmitting} // Use local isSubmitting state
+              loadingText="Signing in..."
+              className="w-full"
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
-            </button>
+              Sign in
+            </LoadingButton>
           </div>
-
           <div className="text-sm text-center">
-            <p>
-              Don't have an account?{' '}
-              <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                Sign up
-              </Link>
-            </p>
-          </div>
+              <p>
+                Don't have an account?{' '}
+                <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+                  Sign up
+                </Link>
+              </p>
+            </div>
         </form>
       </div>
     </div>

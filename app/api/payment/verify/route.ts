@@ -5,11 +5,11 @@ import { db } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
-    const userId = request.headers.get("x-user-id");
-    console.log("Payment Verify API - x-user-id:", userId);
+    const nextAuthUserId = request.headers.get("x-nextauth-user-id");
+    console.log("Payment Verify API - x-nextauth-user-id:", nextAuthUserId);
 
-    if (!userId) {
-      console.log("Payment Verify API - No user ID, returning 401");
+    if (!nextAuthUserId) {
+      console.log("Payment Verify API - No NextAuth user ID, returning 401");
       return NextResponse.json({
         error: "Unauthorized",
         message: "Authentication required"
@@ -17,11 +17,11 @@ export async function GET(request: Request) {
     }
 
     const user = await db.user.findUnique({
-      where: { id: userId },
+      where: { id: nextAuthUserId },
     });
 
     if (!user) {
-      console.log("Payment Verify API - User not found for ID:", userId);
+      console.log("Payment Verify API - User not found for ID:", nextAuthUserId);
       return NextResponse.json({
         error: "User not found",
         message: "The user associated with this authentication could not be found"
