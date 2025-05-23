@@ -15,12 +15,9 @@ export default function Checkout() {
   const cart = useCartStore(state => state.cart);
   const { data: session, status } = useSession();
   const user = session?.user;
-  const isAuthenticated = status === 'authenticated';
-  const isLoading = status === 'loading';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isClient, setIsClient] = useState(false);
-  const [authReady, setAuthReady] = useState(false);
 
   // Form data state for restoration after login
   const [formData, setFormData] = useState({
@@ -66,30 +63,21 @@ export default function Checkout() {
     // Debug authentication state
     console.log('Checkout page - Auth state:', {
       status,
-      isAuthenticated,
-      isLoading,
-      user: user ? {
-        id: user.id,
-        email: user.email,
-        name: user.name
-      } : null
+      isAuthenticated: status === 'authenticated',
+      isLoading: status === 'loading',
+      userEmail: session?.user?.email || 'not logged in'
     });
 
-    // Set auth ready state when authentication is not loading
-    if (!isLoading) {
-      setAuthReady(true);
-    }
-
     // Only redirect if we're definitely not authenticated and not loading
-    if (!isAuthenticated && !isLoading) {
+    if (status === 'unauthenticated') {
       console.log('Checkout requires authentication, redirecting to login');
       router.push('/login?redirect=/checkout');
-    } else if (isAuthenticated) {
-      console.log('User is authenticated:', user?.email);
-    } else {
+    } else if (status === 'authenticated') {
+      console.log('User is authenticated:', session?.user?.email);
+    } else if (status === 'loading') {
       console.log('Authentication status is loading, waiting...');
     }
-  }, [status, isAuthenticated, isLoading, isClient, user, router]);
+  }, [status, isClient, session?.user?.email, router]);
 
   const handleCheckout = async (event: React.FormEvent<HTMLFormElement>) => {
     // Prevent the default form submission which would cause a page refresh
@@ -105,17 +93,17 @@ export default function Checkout() {
       }
 
       // Check authentication status again before proceeding
-      if (isLoading) {
+      if (status === 'loading') {
         console.log('Authentication status is still loading, waiting...');
         setLoading(false);
         return;
       }
 
-      if (!isAuthenticated || !session || !user) {
+      if (status !== 'authenticated' || !session || !user) {
         // Log detailed authentication state for debugging
         console.log('Checkout - Authentication check before proceeding:', {
           status,
-          isAuthenticated,
+          isAuthenticated: status === 'authenticated',
           session: !!session,
           user: !!user
         });
@@ -264,7 +252,7 @@ export default function Checkout() {
         }
 
         // Store NextAuth session information if available
-        if (isAuthenticated && session) {
+        if (status === 'authenticated' && session) {
           localStorage.setItem('nextauth_checkout_session', JSON.stringify({
             user: {
               id: session.user.id,
@@ -309,12 +297,12 @@ export default function Checkout() {
         )}
 
         {/* Show loading state when authentication is being checked */}
-        {!isClient || !authReady ? (
+        {!isClient || status === 'loading' ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
             <p className="mt-2 text-gray-600">Verifying authentication...</p>
           </div>
-        ) : !isAuthenticated ? (
+        ) : status === 'unauthenticated' ? (
           <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
             <p>You need to be logged in to checkout.</p>
             <p className="mt-2">

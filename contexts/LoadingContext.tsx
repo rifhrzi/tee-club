@@ -18,6 +18,13 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
   const startLoading = (message?: string) => {
     setLoadingMessage(message);
     setIsLoading(true);
+
+    // Add automatic cleanup after 10 seconds as a fallback
+    setTimeout(() => {
+      console.log('LoadingContext: Auto-clearing loading state after timeout');
+      setIsLoading(false);
+      setLoadingMessage(undefined);
+    }, 10000); // 10 second timeout
   };
 
   const stopLoading = () => {

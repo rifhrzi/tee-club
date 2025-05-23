@@ -9,9 +9,10 @@ interface DirectLoginLinkProps {
   className?: string;
   href?: string;
   onNavigationStart?: () => void;
+  onNavigationComplete?: () => void;
 }
 
-export default function DirectLoginLink({ children, className = '', href = '/checkout', onNavigationStart }: DirectLoginLinkProps) {
+export default function DirectLoginLink({ children, className = '', href = '/checkout', onNavigationStart, onNavigationComplete }: DirectLoginLinkProps) {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [isClient, setIsClient] = useState(false);
@@ -44,6 +45,23 @@ export default function DirectLoginLink({ children, className = '', href = '/che
       router.push(href);
     }
   }, [status, session, isClient, href, router, isRedirecting]);
+
+  // Add navigation completion detection
+  useEffect(() => {
+    if (isRedirecting) {
+      // Set a timeout to call navigation complete callback
+      // This ensures loading state is cleared even if navigation takes time
+      const timer = setTimeout(() => {
+        console.log('DirectLoginLink: Navigation timeout, calling completion callback');
+        setIsRedirecting(false);
+        if (onNavigationComplete) {
+          onNavigationComplete();
+        }
+      }, 3000); // 3 second timeout
+
+      return () => clearTimeout(timer);
+    }
+  }, [isRedirecting, onNavigationComplete]);
 
   // Don't render anything during server-side rendering
   if (!isClient) {
@@ -85,6 +103,13 @@ export default function DirectLoginLink({ children, className = '', href = '/che
       // Use a small delay to ensure state updates
       setTimeout(() => {
         router.push(href);
+        // Call navigation complete after a short delay
+        setTimeout(() => {
+          setIsRedirecting(false);
+          if (onNavigationComplete) {
+            onNavigationComplete();
+          }
+        }, 500); // 500ms delay to allow navigation to start
       }, 100);
     };
 
@@ -148,6 +173,14 @@ export default function DirectLoginLink({ children, className = '', href = '/che
 
         // Navigate to login using the router for a smoother transition
         router.push(`/login?redirect=${encodeURIComponent(href)}`);
+
+        // Call navigation complete after a short delay
+        setTimeout(() => {
+          setIsRedirecting(false);
+          if (onNavigationComplete) {
+            onNavigationComplete();
+          }
+        }, 500); // 500ms delay to allow navigation to start
       }}
     >
       {children}

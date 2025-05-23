@@ -26,7 +26,7 @@ export default function CartPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
-  const { startLoading } = useLoading();
+  const { startLoading, stopLoading } = useLoading();
 
   // Use the cart store
   const cart = useCartStore((state) => state.cart);
@@ -67,6 +67,15 @@ export default function CartPage() {
       router.push('/login?redirect=/cart');
     }
   }, [isAuthenticated, isReady, authLoading, session, router, isClient, startLoading]);
+
+  // Cleanup loading state when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clear loading state when component unmounts (e.g., when navigating away)
+      stopLoading();
+      setIsNavigating(false);
+    };
+  }, [stopLoading]);
 
   const total = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
 
@@ -185,6 +194,10 @@ export default function CartPage() {
                   onNavigationStart={() => {
                     setIsNavigating(true);
                     startLoading('Menuju ke halaman pembayaran...');
+                  }}
+                  onNavigationComplete={() => {
+                    setIsNavigating(false);
+                    stopLoading();
                   }}
                 >
                   <button
