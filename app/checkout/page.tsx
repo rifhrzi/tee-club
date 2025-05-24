@@ -2,15 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+
 import useCartStore from '@/store/cartStore';
 import { useSession } from 'next-auth/react';
 import Layout from '@/components/Layout';
+import AuthGuard from '@/components/AuthGuard';
+
 
 // Force this page to be client-side only
 export const dynamic = 'force-dynamic';
 
 export default function Checkout() {
+  return (
+    <AuthGuard
+      requireAuth={true}
+      redirectTo="/login?redirect=/checkout"
+      loadingMessage="Preparing checkout..."
+    >
+      <CheckoutContent />
+    </AuthGuard>
+  );
+}
+
+function CheckoutContent() {
   const router = useRouter();
   const cart = useCartStore(state => state.cart);
   const { data: session, status } = useSession();
@@ -56,28 +70,16 @@ export default function Checkout() {
     }
   }, []);
 
-  // Check authentication status
+  // Simple auth state logging (AuthGuard handles the heavy lifting)
   useEffect(() => {
     if (!isClient) return;
 
-    // Debug authentication state
     console.log('Checkout page - Auth state:', {
       status,
       isAuthenticated: status === 'authenticated',
-      isLoading: status === 'loading',
       userEmail: session?.user?.email || 'not logged in'
     });
-
-    // Only redirect if we're definitely not authenticated and not loading
-    if (status === 'unauthenticated') {
-      console.log('Checkout requires authentication, redirecting to login');
-      router.push('/login?redirect=/checkout');
-    } else if (status === 'authenticated') {
-      console.log('User is authenticated:', session?.user?.email);
-    } else if (status === 'loading') {
-      console.log('Authentication status is loading, waiting...');
-    }
-  }, [status, isClient, session?.user?.email, router]);
+  }, [status, isClient, session?.user?.email]);
 
   const handleCheckout = async (event: React.FormEvent<HTMLFormElement>) => {
     // Prevent the default form submission which would cause a page refresh
@@ -296,20 +298,11 @@ export default function Checkout() {
           </div>
         )}
 
-        {/* Show loading state when authentication is being checked */}
-        {!isClient || status === 'loading' ? (
+        {/* AuthGuard handles authentication, so we can directly show the form */}
+        {!isClient ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            <p className="mt-2 text-gray-600">Verifying authentication...</p>
-          </div>
-        ) : status === 'unauthenticated' ? (
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-            <p>You need to be logged in to checkout.</p>
-            <p className="mt-2">
-              <Link href="/login?redirect=/checkout" className="text-blue-600 hover:underline">
-                Click here to log in
-              </Link>
-            </p>
+            <p className="mt-2 text-gray-600">Loading checkout...</p>
           </div>
         ) : (
           <form onSubmit={handleCheckout} className="space-y-6 bg-white p-6 shadow-lg rounded-lg">
