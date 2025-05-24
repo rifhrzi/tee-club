@@ -3,41 +3,166 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import useAuth from "@/hooks/useAuth";
+import { signOut } from "next-auth/react";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+import { useAdminDashboard, useAdminOrders } from "@/hooks/useAdminDashboard";
+import { AdminOrder, OrderStatus } from "@/types/admin";
 
 export default function DashboardPage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isReady } = useUnifiedAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
 
-  useEffect(() => {
-    if (!isAuthenticated || user?.role !== "ADMIN") {
-      router.push("/login?redirect=/dashboard");
-    }
-  }, [isAuthenticated, user, router]);
+  // Fetch real dashboard data
+  const {
+    dashboardData,
+    loading: dashboardLoading,
+    error: dashboardError,
+    refreshDashboard,
+  } = useAdminDashboard();
+  const {
+    ordersData,
+    loading: ordersLoading,
+    error: ordersError,
+    updateOrderStatus,
+  } = useAdminOrders({
+    page: 1,
+    limit: 10,
+    autoRefresh: true,
+    refreshInterval: 30000, // Refresh every 30 seconds
+  });
 
-  if (!isAuthenticated || user?.role !== "ADMIN") {
-    return <div>Redirecting...</div>;
+  // Debug logging
+  useEffect(() => {
+    console.log("Dashboard - Auth state:", {
+      isAuthenticated,
+      isReady,
+      user,
+      userRole: user?.role,
+    });
+  }, [isAuthenticated, isReady, user]);
+
+  useEffect(() => {
+    if (!isReady) {
+      console.log("Dashboard - Auth not ready yet, waiting...");
+      return;
+    }
+
+    if (!isAuthenticated) {
+      console.log("Dashboard - User not authenticated, redirecting to login");
+      router.push("/login?redirect=/dashboard&message=admin-required");
+      return;
+    }
+
+    if (user?.role !== "ADMIN") {
+      console.log("Dashboard - User role is not ADMIN:", user?.role, "redirecting to login");
+      router.push("/login?redirect=/dashboard&message=admin-required");
+      return;
+    }
+
+    console.log("Dashboard - Admin access granted for user:", user.email);
+  }, [isAuthenticated, user, router, isReady]);
+
+  // Show loading state while auth is being determined
+  if (!isReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading authentication...</p>
+        </div>
+      </div>
+    );
   }
 
-  const stats = [
-    { name: "Total Pesanan", value: "24", change: "+12%" },
-    { name: "Pendapatan", value: "Rp 2.4M", change: "+8%" },
-    { name: "Pelanggan Baru", value: "156", change: "+23%" },
-    { name: "Produk Terjual", value: "1,234", change: "+15%" },
-  ];
+  // Show access denied message for non-admin users
+  if (!isAuthenticated || user?.role !== "ADMIN") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-100">
+        <div className="mx-auto max-w-md p-6 text-center">
+          <div className="mb-4 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700">
+            <h2 className="mb-2 text-lg font-bold">Access Denied</h2>
+            <p className="mb-2">You need administrator privileges to access this page.</p>
+            <p className="text-sm">
+              Current user: {user?.email || "Not logged in"}
+              {user?.role && ` (Role: ${user.role})`}
+            </p>
+          </div>
+          <button
+            onClick={() => router.push("/login?redirect=/dashboard&message=admin-required")}
+            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          >
+            Login as Administrator
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  // Fungsi untuk memformat angka dengan konsisten
+  // Format numbers for display
   const formatNumber = (number: number) => {
     return new Intl.NumberFormat("id-ID").format(number);
   };
 
-  const handleLogout = () => {
-    // TODO: Implementasi logout logic
-    // Contoh: menghapus token dari localStorage
-    localStorage.removeItem("token");
-    // Redirect ke halaman login
-    router.push("/login");
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatChange = (change: number) => {
+    const sign = change >= 0 ? "+" : "";
+    return `${sign}${change}%`;
+  };
+
+  // Generate stats from real data
+  const stats = dashboardData
+    ? [
+        {
+          name: "Total Pesanan",
+          value: formatNumber(dashboardData.stats.totalOrders),
+          change: formatChange(dashboardData.stats.ordersChange),
+          changeColor: dashboardData.stats.ordersChange >= 0 ? "text-green-600" : "text-red-600",
+        },
+        {
+          name: "Pendapatan",
+          value: formatCurrency(dashboardData.stats.totalRevenue),
+          change: formatChange(dashboardData.stats.revenueChange),
+          changeColor: dashboardData.stats.revenueChange >= 0 ? "text-green-600" : "text-red-600",
+        },
+        {
+          name: "Pelanggan Baru",
+          value: formatNumber(dashboardData.stats.newCustomers),
+          change: formatChange(dashboardData.stats.customersChange),
+          changeColor: dashboardData.stats.customersChange >= 0 ? "text-green-600" : "text-red-600",
+        },
+        {
+          name: "Produk Terjual",
+          value: formatNumber(dashboardData.stats.productsSold),
+          change: formatChange(dashboardData.stats.productsSoldChange),
+          changeColor:
+            dashboardData.stats.productsSoldChange >= 0 ? "text-green-600" : "text-red-600",
+        },
+      ]
+    : [
+        { name: "Total Pesanan", value: "0", change: "0%", changeColor: "text-gray-600" },
+        { name: "Pendapatan", value: "Rp 0", change: "0%", changeColor: "text-gray-600" },
+        { name: "Pelanggan Baru", value: "0", change: "0%", changeColor: "text-gray-600" },
+        { name: "Produk Terjual", value: "0", change: "0%", changeColor: "text-gray-600" },
+      ];
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ redirect: false });
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Fallback: clear localStorage and redirect
+      localStorage.removeItem("token");
+      router.push("/login");
+    }
   };
 
   return (
@@ -62,25 +187,55 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {/* Stats Grid */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
-            <div
-              key={stat.name}
-              className="relative overflow-hidden rounded-lg bg-white px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6"
-            >
-              <dt>
-                <div className="absolute rounded-md bg-blue-500 p-3">
-                  <i className="fas fa-chart-line text-white"></i>
+          {dashboardLoading ? (
+            // Loading skeleton
+            Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="relative overflow-hidden rounded-lg bg-white px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6"
+              >
+                <div className="animate-pulse">
+                  <div className="absolute h-12 w-12 rounded-md bg-gray-300 p-3"></div>
+                  <div className="mb-2 ml-16 h-4 w-24 rounded bg-gray-300"></div>
+                  <div className="ml-16 h-8 w-16 rounded bg-gray-300"></div>
                 </div>
-                <p className="ml-16 truncate text-sm font-medium text-gray-500">{stat.name}</p>
-              </dt>
-              <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
-                <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-                <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
-                  {stat.change}
-                </p>
-              </dd>
+              </div>
+            ))
+          ) : dashboardError ? (
+            // Error state
+            <div className="col-span-full rounded-lg border border-red-200 bg-red-50 p-4">
+              <p className="text-red-800">Error loading dashboard data: {dashboardError}</p>
+              <button
+                onClick={refreshDashboard}
+                className="mt-2 text-red-600 underline hover:text-red-500"
+              >
+                Try again
+              </button>
             </div>
-          ))}
+          ) : (
+            // Real data
+            stats.map((stat) => (
+              <div
+                key={stat.name}
+                className="relative overflow-hidden rounded-lg bg-white px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6"
+              >
+                <dt>
+                  <div className="absolute rounded-md bg-blue-500 p-3">
+                    <i className="fas fa-chart-line text-white"></i>
+                  </div>
+                  <p className="ml-16 truncate text-sm font-medium text-gray-500">{stat.name}</p>
+                </dt>
+                <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
+                  <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
+                  <p
+                    className={`ml-2 flex items-baseline text-sm font-semibold ${stat.changeColor}`}
+                  >
+                    {stat.change}
+                  </p>
+                </dd>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Tabs */}
@@ -109,42 +264,122 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/* Recent Orders */}
                 <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-lg font-medium text-gray-900">Pesanan Terbaru</h3>
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-lg font-medium text-gray-900">Pesanan Terbaru</h3>
+                    <button
+                      onClick={refreshDashboard}
+                      className="text-sm text-blue-600 hover:text-blue-500"
+                    >
+                      Refresh
+                    </button>
+                  </div>
                   <div className="mt-4 space-y-4">
-                    {[1, 2, 3].map((order) => (
-                      <div key={order} className="flex items-center justify-between border-b pb-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Pesanan #{order}</p>
-                          <p className="text-sm text-gray-500">2 jam yang lalu</p>
+                    {dashboardLoading ? (
+                      // Loading skeleton
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between border-b pb-4"
+                        >
+                          <div className="animate-pulse">
+                            <div className="mb-2 h-4 w-24 rounded bg-gray-300"></div>
+                            <div className="h-3 w-16 rounded bg-gray-300"></div>
+                          </div>
+                          <div className="h-6 w-16 rounded-full bg-gray-300"></div>
                         </div>
-                        <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                          Selesai
-                        </span>
-                      </div>
-                    ))}
+                      ))
+                    ) : dashboardData?.recentOrders.length ? (
+                      dashboardData.recentOrders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="flex items-center justify-between border-b pb-4"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              Pesanan #{order.id.slice(-8)}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {order.user.name} • {formatCurrency(order.totalAmount)}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {new Date(order.createdAt).toLocaleDateString("id-ID", {
+                                day: "numeric",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs font-medium ${
+                              order.status === "DELIVERED"
+                                ? "bg-green-100 text-green-800"
+                                : order.status === "SHIPPED"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : order.status === "PROCESSING"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : order.status === "PAID"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : order.status === "PENDING"
+                                        ? "bg-gray-100 text-gray-800"
+                                        : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {order.status}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="py-4 text-center text-gray-500">Belum ada pesanan</p>
+                    )}
                   </div>
                 </div>
 
-                {/* Top Products */}
+                {/* Low Stock Products */}
                 <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-lg font-medium text-gray-900">Produk Terlaris</h3>
+                  <h3 className="text-lg font-medium text-gray-900">Stok Rendah</h3>
                   <div className="mt-4 space-y-4">
-                    {[1, 2, 3].map((product) => (
-                      <div
-                        key={product}
-                        className="flex items-center justify-between border-b pb-4"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Produk {product}</p>
-                          <p className="text-sm text-gray-500">
-                            Terjual: {formatNumber(100 + product)}
-                          </p>
+                    {dashboardLoading ? (
+                      // Loading skeleton
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between border-b pb-4"
+                        >
+                          <div className="animate-pulse">
+                            <div className="mb-2 h-4 w-32 rounded bg-gray-300"></div>
+                            <div className="h-3 w-20 rounded bg-gray-300"></div>
+                          </div>
+                          <div className="h-4 w-16 rounded bg-gray-300"></div>
                         </div>
-                        <span className="text-sm font-medium text-gray-900">
-                          Rp {formatNumber(1000000 + product * 100000)}
-                        </span>
-                      </div>
-                    ))}
+                      ))
+                    ) : dashboardData?.lowStockProducts.length ? (
+                      dashboardData.lowStockProducts.map((product) => (
+                        <div
+                          key={product.id}
+                          className="flex items-center justify-between border-b pb-4"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{product.name}</p>
+                            <p className="text-sm text-red-500">
+                              Stok: {product.stock} unit
+                              {product.stock === 0 && " (Habis)"}
+                              {product.stock > 0 && product.stock < 5 && " (Sangat Rendah)"}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-medium text-gray-900">
+                              {formatCurrency(product.price)}
+                            </span>
+                            <p className="text-xs text-gray-500">
+                              Terjual: {product._count?.orderItems || 0}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="py-4 text-center text-gray-500">Semua produk stok aman</p>
+                    )}
                   </div>
                 </div>
               </div>
