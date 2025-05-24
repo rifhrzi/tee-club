@@ -5,14 +5,14 @@ import { Product, CartItem } from "./types";
 import { redirectToSignup } from "../utils/authRedirect";
 
 // Browser detection
-const isBrowser = typeof window !== 'undefined';
+const isBrowser = typeof window !== "undefined";
 
 // Check if localStorage is available
 function isLocalStorageAvailable(): boolean {
   if (!isBrowser) return false;
 
   try {
-    const testKey = '__test__';
+    const testKey = "__test__";
     localStorage.setItem(testKey, testKey);
     localStorage.removeItem(testKey);
     return true;
@@ -26,11 +26,11 @@ function debugLocalStorage(): void {
   if (!isBrowser) return;
 
   try {
-    console.log('--- localStorage Debug ---');
-    console.log('localStorage available:', isLocalStorageAvailable());
+    console.log("--- localStorage Debug ---");
+    console.log("localStorage available:", isLocalStorageAvailable());
 
     if (isLocalStorageAvailable()) {
-      console.log('localStorage keys:');
+      console.log("localStorage keys:");
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key) {
@@ -44,16 +44,23 @@ function debugLocalStorage(): void {
       }
     }
 
-    console.log('------------------------');
+    console.log("------------------------");
   } catch (error) {
-    console.error('Error debugging localStorage:', error);
+    console.error("Error debugging localStorage:", error);
   }
 }
 
 interface CartState {
   cart: CartItem[];
   initialized: boolean;
+<<<<<<< HEAD
   addToCart: (product: Product, options?: { currentPath?: string, skipAuthCheck?: boolean }) => Promise<void>;
+=======
+  addToCart: (
+    product: Product,
+    options?: { currentPath?: string; skipAuthCheck?: boolean }
+  ) => void;
+>>>>>>> 0313f39b3226f04d290aad4df1c1f10e2bdd0cb7
   removeFromCart: (productId: string | number) => void;
   updateQuantity: (productId: string | number, quantity: number) => void;
   clearCart: () => void;
@@ -75,31 +82,35 @@ const useCartStore = create<CartState>()(
         // Check if we've already initialized
         if (get().initialized) return;
 
-        console.log('CartStore: Initializing store');
+        console.log("CartStore: Initializing store");
 
         // Check if localStorage is available
         if (!isLocalStorageAvailable()) {
-          console.error('CartStore: localStorage is not available');
+          console.error("CartStore: localStorage is not available");
           set({ initialized: true });
           return;
         }
 
         // Try to get cart data from localStorage directly
         try {
-          const storedData = localStorage.getItem('cart-storage');
+          const storedData = localStorage.getItem("cart-storage");
           if (storedData) {
             const parsedData = JSON.parse(storedData);
             if (parsedData.state && Array.isArray(parsedData.state.cart)) {
-              console.log('CartStore: Found stored cart data with', parsedData.state.cart.length, 'items');
+              console.log(
+                "CartStore: Found stored cart data with",
+                parsedData.state.cart.length,
+                "items"
+              );
               set({
                 cart: parsedData.state.cart,
-                initialized: true
+                initialized: true,
               });
               return;
             }
           }
         } catch (error) {
-          console.error('CartStore: Error reading from localStorage:', error);
+          console.error("CartStore: Error reading from localStorage:", error);
         }
 
         // If we get here, either there was no stored data or it was invalid
@@ -107,12 +118,13 @@ const useCartStore = create<CartState>()(
       },
 
       debugCart: () => {
-        console.log('CartStore Debug:');
-        console.log('- Cart items:', get().cart.length);
-        console.log('- Initialized:', get().initialized);
+        console.log("CartStore Debug:");
+        console.log("- Cart items:", get().cart.length);
+        console.log("- Initialized:", get().initialized);
         debugLocalStorage();
       },
 
+<<<<<<< HEAD
       addToCart: async (product: Product, options: { currentPath?: string, skipAuthCheck?: boolean } = {}) => {
         console.log('CartStore: addToCart called with options:', options);
 
@@ -148,18 +160,27 @@ const useCartStore = create<CartState>()(
 
           console.log('CartStore: User is authenticated, proceeding with adding to cart');
         }
+=======
+      addToCart: (
+        product: Product,
+        options: { currentPath?: string; skipAuthCheck?: boolean } = {}
+      ) => {
+        console.log("CartStore: addToCart called with options:", options);
+
+        // Skip authentication check if explicitly requested (for authenticated users)
+        // Skip authentication check in cart store - let pages handle authentication
+        // The cart store should not be responsible for authentication validation
+        // This will be handled by the pages that use the cart
+        console.log("CartStore: Adding item to cart (authentication handled by pages)");
+>>>>>>> 0313f39b3226f04d290aad4df1c1f10e2bdd0cb7
 
         // If authenticated, proceed with adding to cart
         set((state) => {
-          const existingItem = state.cart.find(
-            (item: CartItem) => item.product.id === product.id
-          );
+          const existingItem = state.cart.find((item: CartItem) => item.product.id === product.id);
           if (existingItem) {
             return {
               cart: state.cart.map((item: CartItem) =>
-                item.product.id === product.id
-                  ? { ...item, quantity: item.quantity + 1 }
-                  : item
+                item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
               ),
             };
           }
@@ -169,9 +190,7 @@ const useCartStore = create<CartState>()(
 
       removeFromCart: (productId: string | number) =>
         set((state) => ({
-          cart: state.cart.filter(
-            (item: CartItem) => item.product.id !== productId
-          ),
+          cart: state.cart.filter((item: CartItem) => item.product.id !== productId),
         })),
 
       updateQuantity: (productId: string | number, quantity: number) =>
@@ -189,34 +208,36 @@ const useCartStore = create<CartState>()(
       name: "cart-storage",
       storage: createJSONStorage(() => {
         // Only use localStorage in browser environment
-        return isBrowser ? {
-          getItem: (name) => {
-            try {
-              return localStorage.getItem(name);
-            } catch (error) {
-              console.error(`Error reading from localStorage: ${name}`, error);
-              return null;
+        return isBrowser
+          ? {
+              getItem: (name) => {
+                try {
+                  return localStorage.getItem(name);
+                } catch (error) {
+                  console.error(`Error reading from localStorage: ${name}`, error);
+                  return null;
+                }
+              },
+              setItem: (name, value) => {
+                try {
+                  localStorage.setItem(name, value);
+                } catch (error) {
+                  console.error(`Error writing to localStorage: ${name}`, error);
+                }
+              },
+              removeItem: (name) => {
+                try {
+                  localStorage.removeItem(name);
+                } catch (error) {
+                  console.error(`Error removing from localStorage: ${name}`, error);
+                }
+              },
             }
-          },
-          setItem: (name, value) => {
-            try {
-              localStorage.setItem(name, value);
-            } catch (error) {
-              console.error(`Error writing to localStorage: ${name}`, error);
-            }
-          },
-          removeItem: (name) => {
-            try {
-              localStorage.removeItem(name);
-            } catch (error) {
-              console.error(`Error removing from localStorage: ${name}`, error);
-            }
-          }
-        } : {
-          getItem: () => null,
-          setItem: () => {},
-          removeItem: () => {}
-        }
+          : {
+              getItem: () => null,
+              setItem: () => {},
+              removeItem: () => {},
+            };
       }),
       // Only rehydrate on client side
       skipHydration: true,
