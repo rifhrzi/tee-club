@@ -1,9 +1,20 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client";
 
 declare global {
-  var prisma: PrismaClient | undefined
+  var prisma: PrismaClient | undefined;
 }
 
-export const db = global.prisma || new PrismaClient()
+// Create a new PrismaClient instance
+const createPrismaClient = () => {
+  return new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+  });
+};
 
-if (process.env.NODE_ENV !== 'production') global.prisma = db
+// Use global instance in development to prevent multiple connections
+export const db = global.prisma || createPrismaClient();
+
+// Save the client in global scope to prevent multiple instances in development
+if (process.env.NODE_ENV !== "production") {
+  global.prisma = db;
+}

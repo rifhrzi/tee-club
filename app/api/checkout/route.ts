@@ -66,8 +66,8 @@ export async function POST(request: Request) {
     const origin = request.headers.get("origin") || "http://localhost:3001";
     console.log("Checkout API - Request origin:", origin);
 
-    // Set the base URL environment variable
-    process.env.NEXT_PUBLIC_BASE_URL = origin;
+    // Use the origin for the base URL in the payment process
+    // Note: We can't modify process.env at runtime in Next.js
 
     // Create payment
     const payment = await createPayment(validatedData, user);
@@ -156,12 +156,66 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Checkout error:", error);
+
+    // Handle validation errors
     if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Invalid request data", details: error.errors },
+        {
+          error: "Invalid request data",
+          details: error.errors,
+          message: "Please check your input data and try again.",
+        },
         { status: 400 }
       );
     }
-    return NextResponse.json({ error: "Checkout failed" }, { status: 500 });
+
+    // Handle Prisma database errors
+    if (error instanceof Error && error.name === "PrismaClientKnownRequestError") {
+      const prismaError = error as any;
+      console.error(`Prisma error ${prismaError.code}:`, prismaError.message);
+
+      // Handle specific Prisma error codes
+      if (prismaError.code === "P2002") {
+        return NextResponse.json(
+          { error: "Database constraint violation", code: prismaError.code },
+          { status: 400 }
+        );
+      } else if (prismaError.code === "P2025") {
+        return NextResponse.json(
+          { error: "Record not found", code: prismaError.code },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error: "Database error",
+          message: "There was an issue processing your order in our database.",
+        },
+        { status: 500 }
+      );
+    }
+
+    // Handle payment provider errors
+    if (error instanceof Error && error.message.includes("payment")) {
+      return NextResponse.json(
+        {
+          error: "Payment processing error",
+          message:
+            "There was an issue processing your payment. Please try again or use a different payment method.",
+        },
+        { status: 502 }
+      );
+    }
+
+    // Generic error response
+    return NextResponse.json(
+      {
+        error: "Checkout failed",
+        message:
+          error instanceof Error ? error.message : "An unexpected error occurred during checkout.",
+      },
+      { status: 500 }
+    );
   }
 }

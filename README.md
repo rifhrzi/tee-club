@@ -17,13 +17,26 @@ Teelite Club adalah platform e-commerce modern untuk penjualan t-shirt premium d
 - TypeScript
 - Tailwind CSS
 - Zustand (State Management)
+- PostgreSQL
+- Prisma ORM
+- Docker & Docker Compose
 
 ## Persyaratan Sistem
 
+### Pengembangan Lokal
+
 - Node.js 18.0.0 atau lebih tinggi
 - npm atau yarn
+- PostgreSQL 15 atau lebih tinggi
+
+### Menggunakan Docker
+
+- Docker Engine 20.10.0 atau lebih tinggi
+- Docker Compose v2.0.0 atau lebih tinggi
 
 ## Instalasi
+
+### Metode 1: Instalasi Lokal
 
 1. Clone repositori
 
@@ -49,6 +62,57 @@ yarn dev
 ```
 
 4. Buka [http://localhost:3000](http://localhost:3000) di browser Anda
+
+### Metode 2: Menggunakan Docker
+
+1. Clone repositori
+
+```bash
+git clone https://github.com/yourusername/tee-club.git
+cd tee-club
+```
+
+2. Salin file environment
+
+```bash
+cp .env.example .env
+```
+
+3. Jalankan dengan Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+4. Buka aplikasi di browser:
+
+   - Aplikasi: [http://localhost:3000](http://localhost:3000)
+   - pgAdmin (manajemen database): [http://localhost:5050](http://localhost:5050)
+
+5. Untuk menghentikan aplikasi:
+
+```bash
+docker-compose down
+```
+
+### Perintah Docker Lainnya
+
+```bash
+# Membangun image tanpa cache
+docker-compose build --no-cache
+
+# Melihat logs aplikasi
+docker-compose logs -f app
+
+# Menjalankan migrasi database
+docker-compose exec app npx prisma migrate deploy
+
+# Menjalankan seed database
+docker-compose exec app npx prisma db seed
+
+# Menghentikan dan menghapus volume (hapus semua data)
+docker-compose down -v
+```
 
 ## Struktur Proyek
 

@@ -12,7 +12,7 @@
     "clean": "rm -rf .next",
     "test": "jest",
     "test:watch": "jest --watch",
-    "prepare": "husky install",
+    "prepare": "[ \"$HUSKY\" = \"0\" ] && echo 'Skipping husky install' || husky install",
     "seed": "ts-node --project tsconfig.seed.json prisma/seed.ts",
     "seed:admin": "ts-node --project tsconfig.seed.json scripts/seed-admin.ts"
   },

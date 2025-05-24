@@ -11,6 +11,14 @@ const nextConfig = {
       },
     ],
   },
+  // Use standalone output for Docker deployment
+  output: "standalone",
+  experimental: {
+    // This will allow Next.js to skip static optimization for API routes
+    serverComponentsExternalPackages: ["@prisma/client", "bcrypt"],
+  },
+  // Ensure proper output for Docker
+  outputFileTracing: true,
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

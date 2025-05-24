@@ -1,5 +1,10 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcrypt"; // Add this import
+import bcrypt from "bcrypt";
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -119,13 +124,25 @@ async function main() {
   console.log("Seeded database with products:", products);
 
   // Add admin user creation with hashed password
-  const hashedPassword = await bcrypt.hash("securepassword", 10); // Hash the password
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@example.com";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "changeme_in_production";
+
+  // In production, require proper environment variables
+  if (
+    process.env.NODE_ENV === "production" &&
+    (!process.env.SEED_ADMIN_EMAIL || !process.env.SEED_ADMIN_PASSWORD)
+  ) {
+    console.warn("Warning: Using default admin credentials in production is not recommended.");
+    console.warn("Please set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD environment variables.");
+  }
+
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
   const adminUser = await prisma.user.create({
     data: {
-      email: "admin@example.com",
-      password: hashedPassword, // Use the hashed password
+      email: adminEmail,
+      password: hashedPassword,
       name: "Admin User",
-      role: "ADMIN", // Assuming a role field exists in your schema
+      role: "ADMIN",
       createdAt: new Date(),
       updatedAt: new Date(),
     },

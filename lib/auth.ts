@@ -1,8 +1,23 @@
 import jwt from "jsonwebtoken";
 
-// Get JWT configuration from environment variables with fallbacks
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key";
+// Function to get JWT configuration from environment variables
+function getJwtSecret(name: string, fallback: string): string {
+  const value = process.env[name];
+
+  // In production, require proper environment variables
+  if (process.env.NODE_ENV === "production" && !value) {
+    throw new Error(`${name} must be set in production environment`);
+  }
+
+  return value || fallback;
+}
+
+// Get JWT configuration
+const JWT_SECRET = getJwtSecret("JWT_SECRET", "dev-secret-key-do-not-use-in-production");
+const JWT_REFRESH_SECRET = getJwtSecret(
+  "JWT_REFRESH_SECRET",
+  "dev-refresh-secret-key-do-not-use-in-production"
+);
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
 

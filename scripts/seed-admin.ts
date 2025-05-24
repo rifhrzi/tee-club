@@ -1,20 +1,33 @@
 import { PrismaClient } from "@prisma/client";
-import bcryptjs from "bcryptjs"; // Ganti bcrypt dengan bcryptjs
+import bcryptjs from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
 
 // Inisialisasi Prisma Client
 const prisma = new PrismaClient();
 
-// Konfigurasi admin
+// Konfigurasi admin dari environment variables
 const adminConfig = {
-  email: "admin@teelite.com",
-  name: "Admin Teelite",
-  password: "admin123", // Ganti dengan password yang lebih kuat
+  email: process.env.ADMIN_EMAIL || "admin@teelite.com",
+  name: process.env.ADMIN_NAME || "Admin Teelite",
+  password: process.env.ADMIN_PASSWORD || "changeme_in_production",
   role: "ADMIN" as any, // Use string literal and cast as any to satisfy Prisma type
 };
 
 async function main() {
   console.log("Starting admin user seeder...");
+
+  // In production, require proper environment variables
+  if (
+    process.env.NODE_ENV === "production" &&
+    (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD)
+  ) {
+    console.warn("Warning: Using default admin credentials in production is not recommended.");
+    console.warn("Please set ADMIN_EMAIL and ADMIN_PASSWORD environment variables.");
+  }
 
   try {
     // Cek apakah admin sudah ada

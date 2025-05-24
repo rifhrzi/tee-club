@@ -1,11 +1,23 @@
 import { db } from "@/lib/db";
 
+/**
+ * Get all products with their variants
+ * @returns Array of products with variants
+ * @throws Error if database connection fails
+ */
 export async function getProducts() {
-  return db.product.findMany({
-    include: {
-      variants: true,
-    },
-  });
+  try {
+    return await db.product.findMany({
+      include: {
+        variants: true,
+      },
+    });
+  } catch (error) {
+    console.error("Database error in getProducts:", error);
+
+    // Rethrow the error to be handled by the caller
+    throw error;
+  }
 }
 
 export async function getProductById(id: string) {
