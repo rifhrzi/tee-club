@@ -3,8 +3,38 @@ import { createPayment } from '@/lib/payment';
 import { orderSchema } from '@/lib/validation';
 import { rateLimit } from '@/lib/rate-limit';
 import { db } from '@/lib/db';
+import { getProductStock } from '@/lib/services/products';
+import { storeCheckoutSession } from '@/lib/checkout-session';
 import { ZodError } from 'zod';
-import { Variant } from '@/store/types';
+
+// Helper function to calculate order total
+async function calculateOrderTotal(items: any[]): Promise<number> {
+  let total = 0;
+
+  for (const item of items) {
+    const product = await db.product.findUnique({
+      where: { id: item.productId },
+      include: { variants: true },
+    });
+
+    if (!product) {
+      throw new Error(`Product ${item.productId} not found`);
+    }
+
+    let price = product.price;
+
+    if (item.variantId) {
+      const variant = product.variants.find((v: any) => v.id === item.variantId);
+      if (variant) {
+        price = variant.price;
+      }
+    }
+
+    total += price * item.quantity;
+  }
+
+  return total;
+}
 
 export async function POST(request: Request) {
   try {
@@ -77,7 +107,60 @@ export async function POST(request: Request) {
 
     // Validate request body
     const body = await request.json();
+    console.log('Checkout API - Raw request body:', JSON.stringify(body, null, 2));
     const validatedData = orderSchema.parse(body);
+
+    // CRITICAL: Validate stock availability before creating order
+    console.log('Checkout API - Validating stock for all items');
+    console.log('Checkout API - Items received:', JSON.stringify(validatedData.items, null, 2));
+
+    for (const item of validatedData.items) {
+      console.log(`Checkout API - Checking stock for product ID: ${item.productId}, variant ID: ${item.variantId || 'none'}`);
+
+      const availableStock = await getProductStock(item.productId, item.variantId);
+      console.log(`Checkout API - Available stock for ${item.productId}: ${availableStock}`);
+
+      if (availableStock < item.quantity) {
+        const product = await db.product.findUnique({
+          where: { id: item.productId },
+          include: { variants: true }
+        });
+
+        console.log(`Checkout API - Product lookup result:`, product ? {
+          id: product.id,
+          name: product.name,
+          stock: product.stock,
+          variantCount: product.variants.length
+        } : 'Product not found');
+
+        let itemName = product?.name || 'Unknown Product';
+        if (item.variantId) {
+          const variant = product?.variants.find(v => v.id === item.variantId);
+          console.log(`Checkout API - Variant lookup result:`, variant ? {
+            id: variant.id,
+            name: variant.name,
+            stock: variant.stock
+          } : 'Variant not found');
+          itemName += ` (${variant?.name || 'Unknown Variant'})`;
+        }
+
+        console.log(`Checkout API - Insufficient stock for ${itemName}: requested ${item.quantity}, available ${availableStock}`);
+
+        return NextResponse.json({
+          error: 'Insufficient stock',
+          message: `Sorry, we only have ${availableStock} units of "${itemName}" available. Please adjust your quantity and try again.`,
+          code: 'INSUFFICIENT_STOCK',
+          item: {
+            productId: item.productId,
+            variantId: item.variantId,
+            requestedQuantity: item.quantity,
+            availableStock: availableStock,
+            itemName: itemName
+          }
+        }, { status: 400 });
+      }
+    }
+    console.log('Checkout API - Stock validation passed for all items');
 
     // Get the origin from the request headers
     const origin = request.headers.get('origin') || 'http://localhost:3000';
@@ -86,81 +169,31 @@ export async function POST(request: Request) {
     // Create payment with the origin as the base URL
     const payment = await createPayment(validatedData, user, origin);
 
-    // Create order in database
-    const order = await db.order.create({
-      data: {
-        userId: user.id,
-        status: 'PENDING',
-        items: {
-          create: await Promise.all(
-            validatedData.items.map(async (item) => {
-              const product = await db.product.findUnique({
-                where: { id: item.productId },
-                include: { variants: true },
-              });
+    // Store checkout session data temporarily (no order created yet)
+    const checkoutSession = {
+      orderId: payment.orderId,
+      userId: user.id,
+      items: validatedData.items,
+      shippingDetails: validatedData.shippingDetails,
+      paymentMethod: validatedData.paymentMethod,
+      paymentToken: payment.token,
+      totalAmount: await calculateOrderTotal(validatedData.items),
+      createdAt: new Date().toISOString()
+    };
 
-              if (!product) {
-                throw new Error(`Product ${item.productId} not found`);
-              }
-
-              let validVariant: Variant | null = null;
-              let price = product.price;
-
-              if (item.variantId) {
-                validVariant = product.variants.find((v: Variant) => v.id === item.variantId) || null;
-                if (validVariant) {
-                  price = validVariant.price;
-                }
-              }
-
-              const orderItem: any = {
-                productId: item.productId,
-                quantity: item.quantity,
-                price: price,
-              };
-
-              if (validVariant) {
-                orderItem.variantId = item.variantId;
-              }
-
-              return orderItem;
-            })
-          ),
-        },
-        totalAmount: (
-          await Promise.all(
-            validatedData.items.map(async (item) => {
-              const product = await db.product.findUnique({
-                where: { id: item.productId },
-                include: { variants: true },
-              });
-              if (!product) throw new Error(`Product ${item.productId} not found`);
-
-              let validVariant: Variant | null = null;
-              let price = product.price;
-
-              if (item.variantId) {
-                validVariant = product.variants.find((v: Variant) => v.id === item.variantId) || null;
-                if (validVariant) {
-                  price = validVariant.price;
-                }
-              }
-
-              return price * item.quantity;
-            })
-          )
-        ).reduce((sum, price) => sum + price, 0),
-        shippingDetails: {
-          create: validatedData.shippingDetails,
-        },
-        paymentMethod: validatedData.paymentMethod,
-        paymentToken: payment.token,
-      },
+    console.log('Checkout API - Created checkout session:', {
+      orderId: payment.orderId,
+      itemCount: validatedData.items.length,
+      totalAmount: checkoutSession.totalAmount
     });
 
+    // Store the checkout session for later retrieval during payment success
+    storeCheckoutSession(checkoutSession);
+
     return NextResponse.json({
-      orderId: order.id,
+      orderId: payment.orderId,
       redirectUrl: payment.redirect_url,
+      message: 'Checkout session created successfully'
     });
   } catch (error) {
     console.error('Checkout API - Error:', error);

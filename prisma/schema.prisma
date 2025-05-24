@@ -9,7 +9,6 @@ datasource db {
 }
 
 enum OrderStatus {
-  PENDING
   PAID
   PROCESSING
   SHIPPED
@@ -51,7 +50,7 @@ model Order {
   id              String           @id @default(uuid())
   userId          String
   user            User             @relation(fields: [userId], references: [id])
-  status          OrderStatus      @default(PENDING)
+  status          OrderStatus      @default(PAID)
   totalAmount     Float
   paymentMethod   PaymentMethod?
   paymentToken    String?

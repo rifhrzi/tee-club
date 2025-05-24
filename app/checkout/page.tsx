@@ -6,6 +6,7 @@ import Link from 'next/link';
 import useCartStore from '@/store/cartStore';
 import { useSession } from 'next-auth/react';
 import Layout from '@/components/Layout';
+import { isStockError, formatStockErrorMessage } from '@/utils/stockValidation';
 
 // Force this page to be client-side only
 export const dynamic = 'force-dynamic';
@@ -135,17 +136,39 @@ export default function Checkout() {
       console.log('Proceeding with authenticated checkout for:', user.email);
 
       const formData = new FormData(event.currentTarget);
+      // Debug cart contents
+      console.log('Checkout page - Cart contents:', JSON.stringify(cart, null, 2));
+
       const transformedItems = cart.map(item => {
+        console.log('Checkout page - Processing cart item:', {
+          productId: item.product.id,
+          productName: item.product.name,
+          hasVariant: !!item.product.variant,
+          hasVariantId: !!item.product.variantId,
+          variant: item.product.variant,
+          variantId: item.product.variantId,
+          quantity: item.quantity
+        });
+
         const transformedItem: any = {
           productId: String(item.product.id),
           quantity: item.quantity
         };
-        const product = item.product as any;
-        if (product.variantId) {
-          transformedItem.variantId = product.variantId;
+
+        // Check for variant in multiple ways
+        if (item.product.variantId) {
+          transformedItem.variantId = item.product.variantId;
+          console.log('Checkout page - Added variantId from product.variantId:', item.product.variantId);
+        } else if (item.product.variant?.id) {
+          transformedItem.variantId = item.product.variant.id;
+          console.log('Checkout page - Added variantId from product.variant.id:', item.product.variant.id);
         }
+
+        console.log('Checkout page - Transformed item:', transformedItem);
         return transformedItem;
       });
+
+      console.log('Checkout page - Final transformed items:', JSON.stringify(transformedItems, null, 2));
 
       const phoneInput = formData.get('phone') as string;
       const formattedPhone = phoneInput.startsWith('0')
@@ -231,6 +254,12 @@ export default function Checkout() {
           // Redirect to login with checkout as the redirect destination
           router.push('/login?redirect=/checkout');
           return;
+        }
+
+        // Handle stock validation errors specifically
+        if (response.status === 400 && isStockError(data)) {
+          const stockErrorMessage = formatStockErrorMessage(data);
+          throw new Error(stockErrorMessage);
         }
 
         if (response.status === 400 && data.details) {

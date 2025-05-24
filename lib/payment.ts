@@ -48,6 +48,8 @@ export async function createPayment(order: OrderInput, user: any, customBaseUrl?
       error: `${baseUrl}/payment/failure?order_id=${orderId}`,
       pending: `${baseUrl}/payment/pending?order_id=${orderId}`,
     },
+    // CRITICAL: Notification URL for server-to-server payment status updates
+    notification_url: `${baseUrl}/api/midtrans/notification`,
   }
 
   try {

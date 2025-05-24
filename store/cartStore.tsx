@@ -53,7 +53,7 @@ function debugLocalStorage(): void {
 interface CartState {
   cart: CartItem[];
   initialized: boolean;
-  addToCart: (product: Product, options?: { currentPath?: string, skipAuthCheck?: boolean }) => void;
+  addToCart: (product: Product, options?: { currentPath?: string, skipAuthCheck?: boolean }) => Promise<void>;
   removeFromCart: (productId: string | number) => void;
   updateQuantity: (productId: string | number, quantity: number) => void;
   clearCart: () => void;
@@ -113,7 +113,7 @@ const useCartStore = create<CartState>()(
         debugLocalStorage();
       },
 
-      addToCart: (product: Product, options: { currentPath?: string, skipAuthCheck?: boolean } = {}) => {
+      addToCart: async (product: Product, options: { currentPath?: string, skipAuthCheck?: boolean } = {}) => {
         console.log('CartStore: addToCart called with options:', options);
 
         // Skip authentication check if explicitly requested (for authenticated users)
@@ -122,43 +122,25 @@ const useCartStore = create<CartState>()(
         } else {
           console.log('CartStore: Performing authentication check');
 
-          // Always check for authentication
+          // Check authentication using NextAuth session API
           if (isBrowser) {
-            // Debug: Log all cookies
-            console.log('CartStore: All cookies:', document.cookie);
+            try {
+              console.log('CartStore: Checking session via NextAuth API');
+              const response = await fetch('/api/auth/session');
+              const session = await response.json();
 
-            // Check for NextAuth cookies with more comprehensive patterns
-            const cookies = document.cookie.split(';');
-            const nextAuthCookiePatterns = [
-              'next-auth.session-token',
-              '__Secure-next-auth.session-token',
-              '__Host-next-auth.session-token',
-              'next-auth.csrf-token',
-              '__Secure-next-auth.csrf-token',
-              '__Host-next-auth.csrf-token'
-            ];
+              console.log('CartStore: Session response:', session);
 
-            // Check if any NextAuth cookie exists
-            let hasNextAuthCookie = false;
-            let foundCookies = [];
-
-            for (const cookie of cookies) {
-              const trimmedCookie = cookie.trim();
-              for (const pattern of nextAuthCookiePatterns) {
-                if (trimmedCookie.startsWith(`${pattern}=`) && trimmedCookie.length > pattern.length + 1) {
-                  hasNextAuthCookie = true;
-                  foundCookies.push(pattern);
-                  break;
-                }
+              if (!session || !session.user) {
+                console.log('CartStore: User not authenticated, redirecting to login');
+                redirectToSignup(options.currentPath || window.location.pathname);
+                return;
               }
-            }
 
-            console.log('CartStore: NextAuth cookies found:', foundCookies);
-            console.log('CartStore: NextAuth cookie check result:', hasNextAuthCookie);
-
-            // If no NextAuth cookie found, redirect to login
-            if (!hasNextAuthCookie) {
-              console.log('CartStore: User not authenticated, redirecting to login');
+              console.log('CartStore: User is authenticated:', session.user.email);
+            } catch (error) {
+              console.error('CartStore: Error checking session:', error);
+              console.log('CartStore: Session check failed, redirecting to login');
               redirectToSignup(options.currentPath || window.location.pathname);
               return;
             }

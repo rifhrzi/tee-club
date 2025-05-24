@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import midtransClient from "midtrans-client";
 import { db } from "@/lib/db";
-import { reduceProductStock } from "@/lib/services/products";
+import { createOrderFromCheckout } from "@/lib/services/products";
+import { getCheckoutSession, removeCheckoutSession } from "@/lib/checkout-session";
 
 export async function POST(request: Request) {
   try {
@@ -19,68 +20,82 @@ export async function POST(request: Request) {
     const transactionStatus = notificationJson.transaction_status;
     const fraudStatus = notificationJson.fraud_status;
 
-    let orderStatus: "PENDING" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" =
-      "PENDING";
+    // Determine if payment was successful
+    let isPaymentSuccessful = false;
 
     if (transactionStatus === "capture") {
-      if (fraudStatus === "challenge") {
-        orderStatus = "PENDING";
-      } else if (fraudStatus === "accept") {
-        orderStatus = "PAID";
-      }
+      isPaymentSuccessful = fraudStatus === "accept";
     } else if (transactionStatus === "settlement") {
-      orderStatus = "PAID";
-    } else if (
-      transactionStatus === "cancel" ||
-      transactionStatus === "deny" ||
-      transactionStatus === "expire"
-    ) {
-      orderStatus = "CANCELLED";
-    } else if (transactionStatus === "pending") {
-      orderStatus = "PENDING";
+      isPaymentSuccessful = true;
     }
 
-    const order = await db.order.findFirst({
-      where: {
-        OR: [
-          { paymentToken: notificationJson.transaction_id },
-          { id: { startsWith: orderId.replace("ORDER-", "") } },
-        ],
-      },
-      include: {
-        items: true
-      }
-    });
+    console.log(`Midtrans: Payment status for ${orderId}: ${transactionStatus}, Success: ${isPaymentSuccessful}`);
 
-    if (order) {
-      // Update order status
-      await db.order.update({
-        where: { id: order.id },
-        data: { status: orderStatus },
-      });
+    // Only create order if payment was successful
+    if (isPaymentSuccessful) {
+      console.log(`Midtrans: Payment successful for ${orderId}, creating order...`);
 
-      // If payment is successful, reduce stock for each item
-      if (orderStatus === "PAID") {
-        console.log(`Midtrans: Order ${order.id} is paid, reducing stock for ${order.items.length} items`);
+      try {
+        // Check if order already exists (prevent duplicate creation)
+        const existingOrder = await db.order.findUnique({
+          where: { id: orderId }
+        });
 
-        try {
-          // Process each order item
-          for (const item of order.items) {
-            await reduceProductStock(
-              item.productId,
-              item.quantity,
-              item.variantId || undefined
-            );
-          }
-          console.log(`Midtrans: Successfully reduced stock for all items in order ${order.id}`);
-        } catch (stockError) {
-          console.error(`Midtrans: Error reducing stock for order ${order.id}:`, stockError);
-          // We don't want to fail the whole request if stock reduction fails
-          // Just log the error and continue
+        if (existingOrder) {
+          console.log(`Midtrans: Order ${orderId} already exists, skipping creation`);
+          return NextResponse.json({ success: true, message: "Order already exists" });
         }
+
+        // Retrieve checkout session data
+        const checkoutSession = getCheckoutSession(orderId);
+
+        if (!checkoutSession) {
+          console.error(`Midtrans: No checkout session found for order ${orderId}`);
+          return NextResponse.json({
+            error: "Checkout session not found",
+            message: "The checkout session has expired or was not found"
+          }, { status: 404 });
+        }
+
+        console.log(`Midtrans: Found checkout session for ${orderId}, creating order with ${checkoutSession.items.length} items`);
+
+        // Create order from checkout session data
+        const orderResult = await createOrderFromCheckout(checkoutSession);
+
+        if (orderResult.success) {
+          console.log(`Midtrans: Successfully created order ${orderId} with PAID status and reduced stock`);
+
+          // Remove the checkout session since order was created successfully
+          removeCheckoutSession(orderId);
+
+          return NextResponse.json({
+            success: true,
+            message: "Order created successfully",
+            orderId: orderResult.order?.id
+          });
+        } else {
+          console.error(`Midtrans: Failed to create order ${orderId}:`, orderResult.error);
+
+          if (orderResult.needsRefund) {
+            console.error(`Midtrans: CRITICAL: Payment successful but order creation failed for ${orderId} - REFUND NEEDED`);
+          }
+
+          return NextResponse.json({
+            error: "Failed to create order",
+            details: orderResult.error,
+            needsRefund: orderResult.needsRefund
+          }, { status: 500 });
+        }
+
+      } catch (orderCreationError) {
+        console.error(`Midtrans: Critical error during order creation for ${orderId}:`, orderCreationError);
+        return NextResponse.json({
+          error: "Critical error during order creation",
+          details: orderCreationError instanceof Error ? orderCreationError.message : 'Unknown error'
+        }, { status: 500 });
       }
     } else {
-      console.error(`Order not found for notification: ${orderId}`);
+      console.log(`Midtrans: Payment not successful for ${orderId}, status: ${transactionStatus}`);
     }
 
     return NextResponse.json({ success: true });

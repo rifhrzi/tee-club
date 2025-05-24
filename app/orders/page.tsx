@@ -12,27 +12,56 @@ const Layout = dynamic(() => import('@/components/Layout'), { ssr: false });
 
 // Order status badge component
 const StatusBadge = ({ status }: { status: string }) => {
-  const getStatusColor = () => {
+  const getStatusConfig = () => {
     switch (status) {
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800';
       case 'PAID':
-        return 'bg-green-100 text-green-800';
+        return {
+          color: 'bg-green-100 text-green-800',
+          label: 'Paid',
+          description: 'Payment confirmed, preparing your order'
+        };
+      case 'PROCESSING':
+        return {
+          color: 'bg-blue-100 text-blue-800',
+          label: 'Processing',
+          description: 'Your order is being prepared'
+        };
       case 'SHIPPED':
-        return 'bg-blue-100 text-blue-800';
+        return {
+          color: 'bg-purple-100 text-purple-800',
+          label: 'Shipped',
+          description: 'Your order is on the way'
+        };
       case 'DELIVERED':
-        return 'bg-purple-100 text-purple-800';
+        return {
+          color: 'bg-gray-100 text-gray-800',
+          label: 'Delivered',
+          description: 'Order has been delivered'
+        };
       case 'CANCELLED':
-        return 'bg-red-100 text-red-800';
+        return {
+          color: 'bg-red-100 text-red-800',
+          label: 'Cancelled',
+          description: 'Order was cancelled'
+        };
       default:
-        return 'bg-gray-100 text-gray-800';
+        return {
+          color: 'bg-gray-100 text-gray-800',
+          label: status,
+          description: 'Unknown status'
+        };
     }
   };
 
+  const config = getStatusConfig();
+
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor()}`}>
-      {status}
-    </span>
+    <div className="text-right">
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+        {config.label}
+      </span>
+      <p className="text-xs text-gray-500 mt-1">{config.description}</p>
+    </div>
   );
 };
 
@@ -352,13 +381,7 @@ export default function OrdersPage() {
                       View Order Details
                     </button>
                   </Link>
-                  {order.status === 'PENDING' && (
-                    <Link href={`/payment/${order.id}`}>
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        Complete Payment
-                      </button>
-                    </Link>
-                  )}
+
                   {order.status === 'DELIVERED' && (
                     <Link href={`/review/${order.id}`}>
                       <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
