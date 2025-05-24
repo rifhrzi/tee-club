@@ -3,6 +3,7 @@ import "./globals.css";
 import { SITE_CONFIG } from "@/constants";
 import { NextAuthProvider } from "@/providers/NextAuthProvider";
 import { LoadingProvider } from "@/contexts/LoadingContext";
+import AuthProvider from "@/components/AuthProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={inter.className}>
         <NextAuthProvider>
-          <LoadingProvider>{children}</LoadingProvider>
+          <AuthProvider>
+            <LoadingProvider>{children}</LoadingProvider>
+          </AuthProvider>
         </NextAuthProvider>
       </body>
     </html>
