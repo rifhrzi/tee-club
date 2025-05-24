@@ -3,6 +3,11 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { Product, CartItem } from "./types";
 import { redirectToSignup } from "../utils/authRedirect";
+import {
+  cleanCartItems,
+  validateCartAgainstDatabase,
+  debugCartStorage,
+} from "../utils/cartCleanup";
 
 // Browser detection
 const isBrowser = typeof window !== "undefined";
@@ -62,6 +67,8 @@ interface CartState {
   clearCart: () => void;
   initializeStore: () => void;
   debugCart: () => void;
+  cleanupCart: () => Promise<void>;
+  validateCart: () => Promise<void>;
 }
 
 // Create the store with persistence
@@ -98,8 +105,17 @@ const useCartStore = create<CartState>()(
                 parsedData.state.cart.length,
                 "items"
               );
+
+              // Clean the cart data before setting it
+              const cleanedCart = cleanCartItems(parsedData.state.cart);
+              if (cleanedCart.length !== parsedData.state.cart.length) {
+                console.log(
+                  `CartStore: Cleaned cart from ${parsedData.state.cart.length} to ${cleanedCart.length} items`
+                );
+              }
+
               set({
-                cart: parsedData.state.cart,
+                cart: cleanedCart,
                 initialized: true,
               });
               return;
@@ -118,6 +134,33 @@ const useCartStore = create<CartState>()(
         console.log("- Cart items:", get().cart.length);
         console.log("- Initialized:", get().initialized);
         debugLocalStorage();
+        debugCartStorage();
+      },
+
+      cleanupCart: async () => {
+        const currentCart = get().cart;
+        const cleanedCart = cleanCartItems(currentCart);
+
+        if (cleanedCart.length !== currentCart.length) {
+          console.log(
+            `Cleaned cart: removed ${currentCart.length - cleanedCart.length} invalid items`
+          );
+          set({ cart: cleanedCart });
+        }
+      },
+
+      validateCart: async () => {
+        const currentCart = get().cart;
+        const validatedCart = await validateCartAgainstDatabase(currentCart);
+
+        if (validatedCart.length !== currentCart.length) {
+          console.log(
+            `Validated cart: removed ${
+              currentCart.length - validatedCart.length
+            } invalid/missing items`
+          );
+          set({ cart: validatedCart });
+        }
       },
 
       addToCart: (

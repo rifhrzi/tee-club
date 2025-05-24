@@ -5,6 +5,7 @@ import { getToken } from "next-auth/jwt";
 const publicPaths = [
   "/api/auth/[...nextauth]",
   "/api/public",
+  "/api/products", // Products should be publicly accessible
   // Guest order lookup removed - all order operations now require authentication
 ];
 
