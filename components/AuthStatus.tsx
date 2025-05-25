@@ -1,24 +1,30 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import useAuth from '@/hooks/useAuth';
+import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 
 export default function AuthStatus() {
-  const { isAuthenticated, user, logout} = useAuth();
+  const { data: session, status } = useSession();
   const [isClient, setIsClient] = useState(false);
 
   // Only run on client side
   useEffect(() => {
     setIsClient(true);
+  }, []);
+
+  // Log authentication state only when status changes and on client side
+  useEffect(() => {
+    if (!isClient) return;
 
     console.log('AuthStatus - Auth State:', {
-      isAuthenticated,
-      user: user ? user.email : 'not logged in',
+      status,
+      isAuthenticated: status === 'authenticated',
+      user: session?.user ? session.user.email : 'not logged in',
     });
-  }, [isAuthenticated, user]);
+  }, [status, session, isClient]);
 
-  // Don't render anything on server side
+  // Prevent hydration mismatch by not rendering anything on server
   if (!isClient) {
     return null;
   }
@@ -26,9 +32,16 @@ export default function AuthStatus() {
   return (
     <div className="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg z-50 text-sm">
       <h3 className="font-bold mb-2">Auth Status</h3>
-      {isAuthenticated && user ? (
+
+      {status === 'loading' ? (
+        // Show loading state
         <div>
-          <p className="text-green-600">Logged in as: {user.email}</p>
+          <p className="text-blue-600">Loading authentication...</p>
+        </div>
+      ) : status === 'authenticated' && session?.user ? (
+        // Authenticated state
+        <div>
+          <p className="text-green-600">Logged in as: {session.user.email}</p>
           <div className="mt-2 flex space-x-2">
             <Link href="/orders" className="text-blue-600 hover:underline">
               My Orders
@@ -37,25 +50,14 @@ export default function AuthStatus() {
               onClick={() => {
                 console.log('AuthStatus: Logout button clicked');
 
-                // Clear cookies manually before calling logout
-                document.cookie = "auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-                document.cookie = "auth-storage=; path=/; max-age=0; SameSite=Lax";
+                // Clear any checkout session data
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('nextauth_checkout_session');
+                  localStorage.removeItem('checkout_form_data');
+                }
 
-                // Also clear localStorage
-                localStorage.removeItem('auth-storage');
-
-                // For backward compatibility, also clear the old cookie and localStorage
-                document.cookie = "simple-auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-                document.cookie = "simple-auth-storage=; path=/; max-age=0; SameSite=Lax";
-                localStorage.removeItem('simple-auth-storage');
-
-                // Call the logout function
-                logout();
-
-                // Force reload after a short delay
-                setTimeout(() => {
-                  window.location.href = '/';
-                }, 100);
+                // Call NextAuth signOut
+                signOut({ callbackUrl: '/' });
               }}
               className="text-red-600 hover:underline"
             >
@@ -64,6 +66,7 @@ export default function AuthStatus() {
           </div>
         </div>
       ) : (
+        // Not authenticated state
         <div>
           <p className="text-red-600">Not logged in</p>
           <Link href="/login" className="text-blue-600 hover:underline block mt-2">

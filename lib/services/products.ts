@@ -28,7 +28,7 @@ export async function getProductStock(productId: string, variantId?: string) {
   if (!product) return 0
 
   if (variantId) {
-    const variant = product.variants.find(v => v.id === variantId)
+    const variant = product.variants.find((v: any) => v.id === variantId)
     return variant?.stock ?? 0
   }
 

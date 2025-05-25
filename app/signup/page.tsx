@@ -1,18 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { getStoredRedirectPath, clearStoredRedirectPath } from "@/utils/authRedirect";
+import { useLoading } from "@/contexts/LoadingContext";
+import LoadingButton from "@/components/LoadingButton";
 
 interface ApiResponse {
   error?: string;
+  message?: string;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+  };
 }
 
-export default function SignUpPage() {
+function SignUpForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams?.get("callbackUrl") || "/";
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -20,6 +31,7 @@ export default function SignUpPage() {
     password: "",
     confirmPassword: "",
   });
+  const { startLoading, stopLoading } = useLoading();
 
   // Check for redirect path on component mount
   useEffect(() => {
@@ -32,18 +44,22 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
+    startLoading("Creating your account...");
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       setLoading(false);
+      stopLoading();
       return;
     }
 
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      console.log("Signup page: Creating account for:", formData.email);
+
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
@@ -54,25 +70,43 @@ export default function SignUpPage() {
       const data: ApiResponse = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create account');
+        throw new Error(data.error || "Failed to create account");
       }
 
-      if (typeof window !== 'undefined') {
-        window.alert('Account created successfully! Please login with your credentials.');
-      }
+      console.log("Signup page: Account created successfully");
 
       // Store the redirect path in localStorage for the login page to use
       if (redirectPath) {
-        localStorage.setItem('login_redirect', redirectPath);
+        localStorage.setItem("login_redirect", redirectPath);
         // Clear the auth_redirect to avoid confusion
         clearStoredRedirectPath();
       }
 
-      router.push('/login');
+      // Automatically sign in the user
+      console.log("Signup page: Attempting to sign in with new account");
+      const signInResult = await signIn("credentials", {
+        redirect: false,
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (signInResult?.error) {
+        console.log("Signup page: Auto sign-in failed, redirecting to login page");
+        router.push("/login");
+      } else {
+        console.log(
+          "Signup page: Auto sign-in successful, redirecting to:",
+          redirectPath || callbackUrl
+        );
+        router.push(redirectPath || callbackUrl || "/");
+        router.refresh();
+      }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      console.error("Signup page: Error:", error);
+      setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setLoading(false);
+      stopLoading();
     }
   };
 
@@ -103,7 +137,7 @@ export default function SignUpPage() {
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <div className="relative rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700">
             {error}
           </div>
         )}
@@ -176,16 +210,34 @@ export default function SignUpPage() {
           </div>
 
           <div>
-            <button
+            <LoadingButton
               type="submit"
-              disabled={loading}
-              className="group relative flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:bg-indigo-400"
+              isLoading={loading}
+              loadingText="Creating account..."
+              className="w-full bg-indigo-600 hover:bg-indigo-500 focus:ring-indigo-500"
             >
-              {loading ? 'Creating account...' : 'Sign up'}
-            </button>
+              Sign up
+            </LoadingButton>
           </div>
         </form>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600"></div>
+            <p className="mt-2 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <SignUpForm />
+    </Suspense>
   );
 }

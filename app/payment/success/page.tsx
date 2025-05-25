@@ -66,8 +66,8 @@ function PaymentSuccessContent() {
         clearCart();
 
         localStorage.removeItem("pending_order_id");
-        localStorage.removeItem("payment_auth_token");
-        console.log("Payment success page - Cleared payment auth token");
+        localStorage.removeItem("nextauth_checkout_session");
+        console.log("Payment success page - Cleared checkout session");
       }
     } catch (err) {
       console.error("Payment success page - Error processing payment:", err);

@@ -1,42 +1,59 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function withPaymentAuth(
   request: Request,
-  handler: (userId: string | null, user: any | null) => Promise<NextResponse>
+  handler: (userId: string, user: any) => Promise<NextResponse>
 ) {
   try {
-    // Check for authentication token
-    let userId = null;
-    let user = null;
-    const token = request.headers.get("authorization")?.split(" ")[1];
+    const userId = request.headers.get("x-nextauth-user-id");
+    const userEmail = request.headers.get("x-nextauth-user-email");
 
-    // If token exists, verify it and get the user
-    if (token) {
-      try {
-        const decoded = verifyToken(token);
-        userId = decoded.userId;
+    console.log("Payment API - Authentication info:", {
+      "x-nextauth-user-id": userId,
+      "x-nextauth-user-email": userEmail
+    });
 
-        // Get user from database
-        user = await db.user.findUnique({
-          where: { id: userId },
-        });
-
-        console.log("Payment API - Authenticated request for user:", user?.email);
-      } catch (error) {
-        console.log("Payment API - Invalid token, proceeding as guest");
-      }
-    } else {
-      console.log("Payment API - No token provided, proceeding as guest");
+    if (!userId) {
+      console.log("Payment API - No NextAuth user ID, returning 401");
+      return NextResponse.json({
+        error: "Unauthorized",
+        message: "Authentication required. Please log in to continue.",
+        code: "AUTH_REQUIRED"
+      }, {
+        status: 401,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      });
     }
 
-    // Call the handler with the user ID and user object
+    const user = await db.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      console.log("Payment API - User not found for ID:", userId);
+      return NextResponse.json({
+        error: "User not found",
+        message: "The user associated with this authentication could not be found",
+        code: "USER_NOT_FOUND"
+      }, {
+        status: 404,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      });
+    }
+
+    console.log("Payment API - Authenticated request for user:", user.email);
+
     return await handler(userId, user);
   } catch (error) {
     console.error("Payment middleware error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: "Internal server error", message: errorMessage }, { status: 500 });
   }
 }

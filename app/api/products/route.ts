@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
+// Force dynamic API route
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const products = await db.product.findMany({

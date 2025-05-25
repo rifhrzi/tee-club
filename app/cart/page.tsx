@@ -7,15 +7,26 @@ import Link from "next/link";
 import { formatPrice } from "@/constants";
 import dynamicImport from "next/dynamic";
 import DirectLoginLink from "@/components/DirectLoginLink";
-import { Variant } from "@/store/types"; // Impor tipe Variant
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useLoading } from "@/contexts/LoadingContext";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import AuthDebugger from "@/components/AuthDebugger";
+import { useAuthSync } from "@/hooks/useAuthSync";
 
 const Layout = dynamicImport(() => import("@/components/Layout"), { ssr: false });
 
 export const dynamic = "force-dynamic";
 
 export default function CartPage() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const { isAuthenticated, isReady, isLoading: authLoading } = useAuthSync();
   // Add state to handle hydration and initialization
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const { startLoading, stopLoading } = useLoading();
 
   // Use the cart store
   const cart = useCartStore((state) => state.cart);
@@ -28,6 +39,7 @@ export default function CartPage() {
   // Set hydrated state and initialize store once the component mounts
   useEffect(() => {
     setIsHydrated(true);
+    setIsClient(true);
 
     // Initialize the store if it hasn't been initialized yet
     if (!initialized) {
@@ -35,23 +47,100 @@ export default function CartPage() {
     }
   }, [initialized, initializeStore]);
 
+  // Check authentication status using the synchronized hook
+  useEffect(() => {
+    if (!isClient || !isReady) return;
+
+    // Debug authentication state
+    console.log("Cart page - Auth state:", {
+      status,
+      isAuthenticated,
+      authLoading,
+      isReady,
+      user: session?.user ? session.user.email : "not logged in",
+    });
+
+    // Only redirect if we're definitely not authenticated and the auth state is ready
+    if (!isAuthenticated && isReady && !authLoading) {
+      console.log("Cart page requires authentication, redirecting to login");
+      startLoading("Redirecting to login...");
+      router.push("/login?redirect=/cart");
+    }
+  }, [isAuthenticated, isReady, authLoading, session, router, isClient, startLoading]);
+
+  // Cleanup loading state when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clear loading state when component unmounts (e.g., when navigating away)
+      stopLoading();
+      setIsNavigating(false);
+    };
+  }, [stopLoading]);
+
   const total = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
 
-  // Fungsi untuk memformat variant (used in JSX below)
-  const formatVariant = (variant?: string | Variant) => {
-    if (!variant) return null;
-    if (typeof variant === "string") return variant;
-    return variant.name;
-  };
-
-  // Show loading or empty state while hydrating
-  if (!isHydrated) {
+  // Show loading or authentication state
+  if (!isHydrated || authLoading || !isReady) {
     return (
       <Layout>
-        <div className="rounded-lg bg-white p-8 shadow-lg">
-          <h1 className="mb-8 text-3xl font-bold text-gray-900">Keranjang Belanja</h1>
-          <div className="py-8 text-center">
-            <p className="mb-6 text-gray-600">Memuat keranjang belanja...</p>
+        <div className="bg-grunge-dark bg-noise min-h-screen">
+          <div className="container mx-auto px-4 py-12">
+            <div className="card-grunge p-8">
+              <h1 className="font-grunge text-band-white mb-8 text-4xl uppercase">
+                YOUR <span className="text-neon">STASH</span>
+              </h1>
+              <div className="py-8 text-center">
+                <div className="mb-4 flex justify-center">
+                  <LoadingSpinner
+                    size="medium"
+                    text={
+                      !isHydrated
+                        ? "Loading your underground stash..."
+                        : authLoading
+                          ? "Checking rebel status..."
+                          : "Loading..."
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show login prompt for unauthenticated users
+  if (!isAuthenticated && isReady) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gray-50">
+          <div className="container mx-auto px-4 py-12">
+            <div className="card mx-auto max-w-md p-8">
+              <h1 className="mb-8 text-center text-3xl font-bold text-gray-900">Shopping Cart</h1>
+              <div className="py-8 text-center">
+                <div className="mb-6">
+                  <svg
+                    className="mx-auto mb-4 h-16 w-16 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                  <p className="mb-2 text-xl font-semibold text-gray-900">Sign in required</p>
+                  <p className="text-gray-600">Please sign in to access your shopping cart</p>
+                </div>
+                <Link href={`/login?redirect=/cart`}>
+                  <button className="btn btn-primary">Sign In</button>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </Layout>
@@ -60,82 +149,186 @@ export default function CartPage() {
 
   return (
     <Layout>
-      <div className="rounded-lg bg-white p-8 shadow-lg">
-        <h1 className="mb-8 text-3xl font-bold text-gray-900">Keranjang Belanja</h1>
-        {cart.length === 0 ? (
-          <div className="py-8 text-center">
-            <p className="mb-6 text-gray-600">Keranjang belanja Anda kosong.</p>
-            <Link href="/">
-              <button className="rounded-md bg-blue-600 px-6 py-3 font-semibold text-white transition duration-300 hover:bg-blue-700">
-                Lanjut Berbelanja
-              </button>
-            </Link>
-          </div>
-        ) : (
-          <div>
-            <ul className="divide-y divide-gray-200">
-              {cart.map((item) => (
-                <li key={item.product.id} className="flex items-center justify-between py-6">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-medium text-gray-900">{item.product.name}</h3>
-                    <div className="mt-1 space-y-1 text-sm text-gray-500">
-                      {item.product.variant && (
-                        <p>
-                          Variant: {item.product.variant ? item.product.variant.name : "No variant"}
-                        </p>
-                      )}
-                    </div>
-                    <p className="mt-1 text-gray-600">{formatPrice(item.product.price)}</p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center">
-                      <label htmlFor={`quantity-${item.product.id}`} className="sr-only">
-                        Quantity
-                      </label>
-                      <input
-                        id={`quantity-${item.product.id}`}
-                        name={`quantity-${item.product.id}`}
-                        type="number"
-                        value={item.quantity}
-                        min="1"
-                        onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value))}
-                        className="w-20 rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
-                        aria-label="Product quantity"
-                      />
-                    </div>
-                    <button
-                      onClick={() => removeFromCart(item.product.id)}
-                      className="font-medium text-red-600 hover:text-red-800"
-                      aria-label={`Remove ${item.product.name} from cart`}
-                    >
-                      Hapus
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-8 border-t border-gray-200 pt-8">
-              <div className="mb-6 flex items-center justify-between">
-                <span className="text-2xl font-bold text-gray-900">Total</span>
-                <span className="text-2xl font-bold text-gray-900">{formatPrice(total)}</span>
-              </div>
-              <div className="flex justify-end space-x-4">
-                <button
-                  onClick={clearCart}
-                  className="rounded-md bg-gray-200 px-6 py-3 font-semibold text-gray-800 transition duration-300 hover:bg-gray-300"
-                >
-                  Kosongkan Keranjang
-                </button>
-                <Link href="/checkout" className="inline-block">
-                  <button className="rounded-md bg-blue-600 px-6 py-3 font-semibold text-white transition duration-300 hover:bg-blue-700">
-                    Lanjut ke Pembayaran
-                  </button>
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-12">
+          <div className="card p-8">
+            <h1 className="mb-8 text-3xl font-bold text-gray-900">Shopping Cart</h1>
+            {cart.length === 0 ? (
+              <div className="py-12 text-center">
+                <div className="mb-8">
+                  <svg
+                    className="mx-auto mb-4 h-16 w-16 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                    />
+                  </svg>
+                </div>
+                <p className="mb-6 text-xl font-semibold text-gray-900">Your cart is empty</p>
+                <p className="mb-8 text-gray-600">Start shopping to add items to your cart</p>
+                <Link href="/shop">
+                  <button className="btn btn-primary">Start Shopping</button>
                 </Link>
               </div>
-            </div>
+            ) : (
+              <div>
+                <div className="space-y-6">
+                  {cart.map((item) => (
+                    <div
+                      key={item.product.id}
+                      className="card flex items-center justify-between p-6"
+                    >
+                      <div className="flex flex-1 items-center space-x-6">
+                        <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-gray-100">
+                          <svg
+                            className="h-8 w-8 text-primary-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                            />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="mb-2 text-xl font-semibold text-gray-900">
+                            {item.product.name}
+                          </h3>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            {item.product.variant && (
+                              <p>
+                                Variant:{" "}
+                                {item.product.variant ? item.product.variant.name : "No variant"}
+                              </p>
+                            )}
+                          </div>
+                          <p className="text-lg font-bold text-primary-600">
+                            {formatPrice(item.product.price)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-6">
+                        <div className="flex items-center space-x-3">
+                          <label
+                            htmlFor={`quantity-${item.product.id}`}
+                            className="text-sm font-medium text-gray-700"
+                          >
+                            Qty:
+                          </label>
+                          <input
+                            id={`quantity-${item.product.id}`}
+                            name={`quantity-${item.product.id}`}
+                            type="number"
+                            value={item.quantity}
+                            min="1"
+                            onChange={(e) =>
+                              updateQuantity(item.product.id, parseInt(e.target.value))
+                            }
+                            className="input w-20 text-center"
+                            aria-label="Product quantity"
+                          />
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(item.product.id)}
+                          className="btn btn-danger"
+                          aria-label={`Remove ${item.product.name} from cart`}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-12 border-t border-gray-200 pt-8">
+                  <div className="card mb-8 p-6">
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-semibold text-gray-900">Total:</span>
+                      <span className="text-3xl font-bold text-primary-600">
+                        {formatPrice(total)}
+                      </span>
+                    </div>
+                    <div className="mt-4 flex items-center justify-center space-x-2 text-gray-600">
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span className="text-sm">Free shipping on all orders</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col justify-end space-y-4 sm:flex-row sm:space-x-6 sm:space-y-0">
+                    <button onClick={clearCart} className="btn btn-secondary">
+                      Clear Cart
+                    </button>
+                    <DirectLoginLink
+                      className="inline-block"
+                      onNavigationStart={() => {
+                        setIsNavigating(true);
+                        startLoading("Proceeding to checkout...");
+                      }}
+                      onNavigationComplete={() => {
+                        setIsNavigating(false);
+                        stopLoading();
+                      }}
+                    >
+                      <button
+                        className="btn btn-primary disabled:opacity-50"
+                        disabled={isNavigating}
+                      >
+                        {isNavigating ? (
+                          <>
+                            <svg
+                              className="mr-2 h-4 w-4 animate-spin"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                            Processing...
+                          </>
+                        ) : (
+                          "Proceed to Checkout"
+                        )}
+                      </button>
+                    </DirectLoginLink>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
+      <AuthDebugger />
     </Layout>
   );
 }

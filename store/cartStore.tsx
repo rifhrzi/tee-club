@@ -2,18 +2,73 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { Product, CartItem } from "./types";
-import * as ls from "../utils/localStorage";
 import { redirectToSignup } from "../utils/authRedirect";
+import {
+  cleanCartItems,
+  validateCartAgainstDatabase,
+  debugCartStorage,
+} from "../utils/cartCleanup";
+
+// Browser detection
+const isBrowser = typeof window !== "undefined";
+
+// Check if localStorage is available
+function isLocalStorageAvailable(): boolean {
+  if (!isBrowser) return false;
+
+  try {
+    const testKey = "__test__";
+    localStorage.setItem(testKey, testKey);
+    localStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Debug localStorage
+function debugLocalStorage(): void {
+  if (!isBrowser) return;
+
+  try {
+    console.log("--- localStorage Debug ---");
+    console.log("localStorage available:", isLocalStorageAvailable());
+
+    if (isLocalStorageAvailable()) {
+      console.log("localStorage keys:");
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          try {
+            const value = localStorage.getItem(key);
+            console.log(`${key}:`, value);
+          } catch (error) {
+            console.error(`Error getting value for key ${key}:`, error);
+          }
+        }
+      }
+    }
+
+    console.log("------------------------");
+  } catch (error) {
+    console.error("Error debugging localStorage:", error);
+  }
+}
 
 interface CartState {
   cart: CartItem[];
   initialized: boolean;
-  addToCart: (product: Product) => void;
+  addToCart: (
+    product: Product,
+    options?: { currentPath?: string; skipAuthCheck?: boolean }
+  ) => void;
   removeFromCart: (productId: string | number) => void;
   updateQuantity: (productId: string | number, quantity: number) => void;
   clearCart: () => void;
   initializeStore: () => void;
   debugCart: () => void;
+  cleanupCart: () => Promise<void>;
+  validateCart: () => Promise<void>;
 }
 
 // Create the store with persistence
@@ -25,36 +80,49 @@ const useCartStore = create<CartState>()(
 
       initializeStore: () => {
         // Only run on client side
-        if (!ls.isBrowser) return;
+        if (!isBrowser) return;
 
         // Check if we've already initialized
         if (get().initialized) return;
 
-        console.log('CartStore: Initializing store');
+        console.log("CartStore: Initializing store");
 
         // Check if localStorage is available
-        if (!ls.isLocalStorageAvailable()) {
-          console.error('CartStore: localStorage is not available');
+        if (!isLocalStorageAvailable()) {
+          console.error("CartStore: localStorage is not available");
           set({ initialized: true });
           return;
         }
 
         // Try to get cart data from localStorage directly
         try {
-          const storedData = localStorage.getItem('cart-storage');
+          const storedData = localStorage.getItem("cart-storage");
           if (storedData) {
             const parsedData = JSON.parse(storedData);
             if (parsedData.state && Array.isArray(parsedData.state.cart)) {
-              console.log('CartStore: Found stored cart data with', parsedData.state.cart.length, 'items');
+              console.log(
+                "CartStore: Found stored cart data with",
+                parsedData.state.cart.length,
+                "items"
+              );
+
+              // Clean the cart data before setting it
+              const cleanedCart = cleanCartItems(parsedData.state.cart);
+              if (cleanedCart.length !== parsedData.state.cart.length) {
+                console.log(
+                  `CartStore: Cleaned cart from ${parsedData.state.cart.length} to ${cleanedCart.length} items`
+                );
+              }
+
               set({
-                cart: parsedData.state.cart,
-                initialized: true
+                cart: cleanedCart,
+                initialized: true,
               });
               return;
             }
           }
         } catch (error) {
-          console.error('CartStore: Error reading from localStorage:', error);
+          console.error("CartStore: Error reading from localStorage:", error);
         }
 
         // If we get here, either there was no stored data or it was invalid
@@ -62,47 +130,58 @@ const useCartStore = create<CartState>()(
       },
 
       debugCart: () => {
-        console.log('CartStore Debug:');
-        console.log('- Cart items:', get().cart.length);
-        console.log('- Initialized:', get().initialized);
-        ls.debugLocalStorage();
+        console.log("CartStore Debug:");
+        console.log("- Cart items:", get().cart.length);
+        console.log("- Initialized:", get().initialized);
+        debugLocalStorage();
+        debugCartStorage();
       },
 
-      addToCart: (product: Product, options: { skipAuthCheck?: boolean, currentPath?: string } = {}) => {
-        // Skip auth check if explicitly requested (for internal use only)
-        if (!options.skipAuthCheck) {
-          // Check if user is authenticated by looking for auth token in localStorage
-          const authStorage = ls.isBrowser ? localStorage.getItem('auth-storage') : null;
-          let isAuthenticated = false;
+      cleanupCart: async () => {
+        const currentCart = get().cart;
+        const cleanedCart = cleanCartItems(currentCart);
 
-          if (authStorage) {
-            try {
-              const authData = JSON.parse(authStorage);
-              isAuthenticated = authData.state?.isAuthenticated || false;
-            } catch (e) {
-              console.error('Error parsing auth storage:', e);
-            }
-          }
-
-          // If not authenticated, redirect to signup and don't add to cart
-          if (!isAuthenticated) {
-            console.log('CartStore: User not authenticated, redirecting to signup');
-            redirectToSignup(options.currentPath || (ls.isBrowser ? window.location.pathname : '/'));
-            return;
-          }
-        }
-
-        // If authenticated or skipAuthCheck is true, proceed with adding to cart
-        set((state) => {
-          const existingItem = state.cart.find(
-            (item: CartItem) => item.product.id === product.id
+        if (cleanedCart.length !== currentCart.length) {
+          console.log(
+            `Cleaned cart: removed ${currentCart.length - cleanedCart.length} invalid items`
           );
+          set({ cart: cleanedCart });
+        }
+      },
+
+      validateCart: async () => {
+        const currentCart = get().cart;
+        const validatedCart = await validateCartAgainstDatabase(currentCart);
+
+        if (validatedCart.length !== currentCart.length) {
+          console.log(
+            `Validated cart: removed ${
+              currentCart.length - validatedCart.length
+            } invalid/missing items`
+          );
+          set({ cart: validatedCart });
+        }
+      },
+
+      addToCart: (
+        product: Product,
+        options: { currentPath?: string; skipAuthCheck?: boolean } = {}
+      ) => {
+        console.log("CartStore: addToCart called with options:", options);
+
+        // Skip authentication check if explicitly requested (for authenticated users)
+        // Skip authentication check in cart store - let pages handle authentication
+        // The cart store should not be responsible for authentication validation
+        // This will be handled by the pages that use the cart
+        console.log("CartStore: Adding item to cart (authentication handled by pages)");
+
+        // If authenticated, proceed with adding to cart
+        set((state) => {
+          const existingItem = state.cart.find((item: CartItem) => item.product.id === product.id);
           if (existingItem) {
             return {
               cart: state.cart.map((item: CartItem) =>
-                item.product.id === product.id
-                  ? { ...item, quantity: item.quantity + 1 }
-                  : item
+                item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
               ),
             };
           }
@@ -112,9 +191,7 @@ const useCartStore = create<CartState>()(
 
       removeFromCart: (productId: string | number) =>
         set((state) => ({
-          cart: state.cart.filter(
-            (item: CartItem) => item.product.id !== productId
-          ),
+          cart: state.cart.filter((item: CartItem) => item.product.id !== productId),
         })),
 
       updateQuantity: (productId: string | number, quantity: number) =>
@@ -132,34 +209,36 @@ const useCartStore = create<CartState>()(
       name: "cart-storage",
       storage: createJSONStorage(() => {
         // Only use localStorage in browser environment
-        return ls.isBrowser ? {
-          getItem: (name) => {
-            try {
-              return localStorage.getItem(name);
-            } catch (error) {
-              console.error(`Error reading from localStorage: ${name}`, error);
-              return null;
+        return isBrowser
+          ? {
+              getItem: (name) => {
+                try {
+                  return localStorage.getItem(name);
+                } catch (error) {
+                  console.error(`Error reading from localStorage: ${name}`, error);
+                  return null;
+                }
+              },
+              setItem: (name, value) => {
+                try {
+                  localStorage.setItem(name, value);
+                } catch (error) {
+                  console.error(`Error writing to localStorage: ${name}`, error);
+                }
+              },
+              removeItem: (name) => {
+                try {
+                  localStorage.removeItem(name);
+                } catch (error) {
+                  console.error(`Error removing from localStorage: ${name}`, error);
+                }
+              },
             }
-          },
-          setItem: (name, value) => {
-            try {
-              localStorage.setItem(name, value);
-            } catch (error) {
-              console.error(`Error writing to localStorage: ${name}`, error);
-            }
-          },
-          removeItem: (name) => {
-            try {
-              localStorage.removeItem(name);
-            } catch (error) {
-              console.error(`Error removing from localStorage: ${name}`, error);
-            }
-          }
-        } : {
-          getItem: () => null,
-          setItem: () => {},
-          removeItem: () => {}
-        }
+          : {
+              getItem: () => null,
+              setItem: () => {},
+              removeItem: () => {},
+            };
       }),
       // Only rehydrate on client side
       skipHydration: true,
@@ -171,7 +250,7 @@ const useCartStore = create<CartState>()(
 );
 
 // Initialize the store when this module is imported on the client side
-if (ls.isBrowser) {
+if (isBrowser) {
   // Use setTimeout to ensure this runs after hydration
   setTimeout(() => {
     useCartStore.getState().initializeStore();

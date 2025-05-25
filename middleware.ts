@@ -1,221 +1,153 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-// Paths that require authentication
-const PROTECTED_PATHS = ["/profile", "/orders"]; // Removed '/checkout' to allow guest checkout
+const publicPaths = [
+  "/api/auth/[...nextauth]",
+  "/api/public",
+  "/api/products", // Products should be publicly accessible
+  // Guest order lookup removed - all order operations now require authentication
+];
 
-// Paths that should redirect to dashboard if already authenticated
-const AUTH_PATHS = ["/login", "/register"];
+export async function middleware(request: NextRequest) {
+  console.log("API Middleware - Processing request for:", request.nextUrl.pathname);
 
-// Add paths that require admin access
-const ADMIN_PATHS = ["/dashboard"];
-
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Check if the path is protected
-  const isProtectedPath = PROTECTED_PATHS.some((path) => pathname.startsWith(path));
-  const isAuthPath = AUTH_PATHS.some((path) => pathname.startsWith(path));
-  const isAdminPath = ADMIN_PATHS.some((path) => pathname.startsWith(path));
-
-  // Check if user is authenticated using multiple possible auth methods
-  let isAuthenticated = false;
-  let userRole = null;
-
-  // Method 1: Check for auth-storage cookie (Zustand persist)
-  // Try multiple possible cookie names and formats
-  const authCookie = request.cookies.get("auth-storage")?.value;
-  const authStorageCookie = request.cookies.get("auth_storage")?.value;
-  const simpleAuthCookie = request.cookies.get("simple-auth-storage")?.value;
-
-  // Method 2: Check for direct auth cookies
-  const authTokenCookie = request.cookies.get("auth_token")?.value;
-  const authUserCookie = request.cookies.get("auth_user")?.value;
-  const debugTokenCookie = request.cookies.get("debug-token")?.value;
-
-  // Method 3: Check for next-auth.session-token cookie
-  const nextAuthCookie = request.cookies.get("next-auth.session-token")?.value;
-
-  // Method 4: Check for JWT token in Authorization header
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null;
-
-  // Method 5: Check for token in URL query parameter (for debugging)
-  const url = new URL(request.url);
-  const queryToken = url.searchParams.get("token");
-
-  console.log("Middleware: Auth methods available:", {
-    hasAuthCookie: !!authCookie,
-    hasAuthStorageCookie: !!authStorageCookie,
-    hasSimpleAuthCookie: !!simpleAuthCookie,
-    hasAuthTokenCookie: !!authTokenCookie,
-    hasAuthUserCookie: !!authUserCookie,
-    hasDebugTokenCookie: !!debugTokenCookie,
-    hasNextAuthCookie: !!nextAuthCookie,
-    hasAuthHeader: !!authHeader,
-    hasQueryToken: !!queryToken
-  });
-
-  // Try method 1: Zustand auth-storage (try all cookie formats)
-  const allAuthCookies = [authCookie, authStorageCookie, simpleAuthCookie].filter(Boolean);
-
-  for (const cookieValue of allAuthCookies) {
-    if (isAuthenticated) break; // Stop if we've already authenticated
-
-    try {
-      console.log("Middleware: Trying to parse cookie:", cookieValue?.substring(0, 20) + "...");
-      const parsedStorage = JSON.parse(cookieValue);
-      const state = parsedStorage.state || parsedStorage;
-
-      // Validate that we have all required fields for authentication
-      if (state.isAuthenticated && state.user && state.user.id) {
-        isAuthenticated = true;
-        userRole = state.user.role || "USER";
-        console.log("Middleware: Valid authentication data found in cookie");
-        console.log("Middleware: User ID:", state.user.id);
-        console.log("Middleware: User email:", state.user.email);
-      } else if (state.token && state.user) {
-        // Alternative structure
-        isAuthenticated = true;
-        userRole = state.user.role || "USER";
-        console.log("Middleware: Valid authentication data found in alternative cookie structure");
-      }
-    } catch (error) {
-      console.error("Error parsing auth cookie:", error);
-    }
+  if (
+    publicPaths.includes(request.nextUrl.pathname) ||
+    request.nextUrl.pathname.startsWith("/api/auth/")
+  ) {
+    console.log("API Middleware - Public path, skipping auth check");
+    return NextResponse.next();
   }
 
-  // If still not authenticated, try method 2: Direct auth cookies
-  if (!isAuthenticated && authTokenCookie) {
-    try {
-      // If we have a direct auth token cookie, use it
-      console.log("Middleware: Found direct auth token cookie");
-
-      // Try to verify the token
-      const parts = authTokenCookie.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        console.log("Middleware: Direct auth token payload:", payload);
-
-        if (payload.userId || payload.sub || payload.id) {
-          isAuthenticated = true;
-          userRole = payload.role || "USER";
-          console.log("Middleware: Valid direct auth token found");
-        }
-      }
-
-      // If we also have user info, use that
-      if (authUserCookie) {
-        try {
-          const userInfo = JSON.parse(decodeURIComponent(authUserCookie));
-          console.log("Middleware: User info from cookie:", userInfo);
-
-          if (userInfo.id) {
-            isAuthenticated = true;
-            userRole = userInfo.role || "USER";
-            console.log("Middleware: Valid user info found in cookie");
-          }
-        } catch (userError) {
-          console.error("Error parsing user info cookie:", userError);
-        }
-      }
-    } catch (tokenError) {
-      console.error("Error verifying direct auth token:", tokenError);
-    }
-  }
-
-  // If still not authenticated, try method 3: NextAuth session
-  if (!isAuthenticated && nextAuthCookie) {
-    // The presence of a valid next-auth session cookie is enough to consider the user authenticated
-    // In a production app, you'd verify this token properly
-    isAuthenticated = true;
-    userRole = "USER"; // Default role since we can't extract it from the cookie directly
-    console.log("Middleware: Valid NextAuth session found");
-  }
-
-  // If still not authenticated, try method 3: JWT token from header or query
-  const tokenToVerify = token || queryToken;
-
-  if (!isAuthenticated && tokenToVerify) {
-    try {
-      // Basic JWT validation (in production, you'd verify the signature)
-      const parts = tokenToVerify.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        console.log("Middleware: JWT payload:", payload);
-
-        if (payload.userId || payload.sub || payload.id) {
-          isAuthenticated = true;
-          userRole = payload.role || "USER";
-          console.log("Middleware: Valid JWT token found in " + (token ? "Authorization header" : "query parameter"));
-          console.log("Middleware: User ID from token:", payload.userId || payload.sub || payload.id);
-        }
-      }
-    } catch (error) {
-      console.error("Error parsing JWT token:", error);
-    }
-  }
-
-  // For debugging: If we're on a protected path and have a query token, add it to the auth cookie
-  if (isProtectedPath && queryToken && !isAuthenticated) {
-    console.log("Middleware: Adding query token to response cookies for debugging");
-    const response = NextResponse.next();
-    response.cookies.set("debug-token", queryToken, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      httpOnly: false,
-      sameSite: "lax"
+  // Log all cookies for debugging
+  console.log("API Middleware - Request cookies:");
+  const cookieHeader = request.headers.get("cookie");
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      console.log(`  ${cookie.trim()}`);
     });
-    return response;
+  } else {
+    console.log("  No cookies found in request");
   }
 
-  userRole = userRole || "USER"; // Fallback to USER if userRole is undefined
+  // Get the NextAuth session token
+  try {
+    console.log("API Middleware - Checking for NextAuth session");
+    console.log("API Middleware - NEXTAUTH_SECRET exists:", !!process.env.NEXTAUTH_SECRET);
+    console.log("API Middleware - NODE_ENV:", process.env.NODE_ENV);
 
-  // Double-check for NextAuth session cookie (in case previous checks missed it)
-  const nextAuthSessionCookie = request.cookies.get("next-auth.session-token");
-  if (nextAuthSessionCookie && !isAuthenticated) {
-    console.log("Middleware: NextAuth session cookie found, considering user authenticated");
-    isAuthenticated = true;
+    // Special handling for orders API
+    const isOrdersApi = request.nextUrl.pathname === "/api/orders";
+    if (isOrdersApi) {
+      console.log("API Middleware - Processing orders API request");
+    }
+
+    // Get the session token from NextAuth
+    const cookieName =
+      process.env.NODE_ENV === "production"
+        ? "__Secure-next-auth.session-token"
+        : "next-auth.session-token";
+
+    // Log the cookie name we're looking for
+    console.log("API Middleware - Looking for cookie:", cookieName);
+
+    // Check if the cookie exists in the request
+    let hasSessionCookie = false;
+    if (cookieHeader) {
+      const cookies = cookieHeader.split(";").map((c) => c.trim());
+      hasSessionCookie = cookies.some((c) => c.startsWith(`${cookieName}=`));
+      console.log("API Middleware - Session cookie found:", hasSessionCookie);
+
+      // Log the actual session cookie value (first 20 chars for security)
+      const sessionCookie = cookies.find((c) => c.startsWith(`${cookieName}=`));
+      if (sessionCookie) {
+        const cookieValue = sessionCookie.split("=")[1];
+        console.log(
+          "API Middleware - Session cookie value (first 20 chars):",
+          cookieValue?.substring(0, 20) + "..."
+        );
+      }
+    }
+
+    const nextAuthToken = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === "production",
+    });
+
+    console.log("API Middleware - getToken result:", nextAuthToken ? "Token found" : "No token");
+
+    if (nextAuthToken) {
+      console.log("API Middleware - Found NextAuth token for user:", nextAuthToken.email);
+
+      // Create a new request with the user information in headers
+      const requestHeaders = new Headers(request.headers);
+
+      // Set user information in headers for API routes (using NextAuth as primary)
+      requestHeaders.set("x-nextauth-user-id", nextAuthToken.id as string);
+      requestHeaders.set("x-nextauth-user-email", nextAuthToken.email as string);
+
+      if (nextAuthToken.name) {
+        requestHeaders.set("x-nextauth-user-name", nextAuthToken.name as string);
+      }
+
+      if (nextAuthToken.role) {
+        requestHeaders.set("x-nextauth-user-role", nextAuthToken.role as string);
+      }
+
+      console.log("API Middleware - Set authentication headers:", {
+        "x-nextauth-user-id": nextAuthToken.id,
+        "x-nextauth-user-email": nextAuthToken.email,
+        "x-nextauth-user-name": nextAuthToken.name,
+        "x-nextauth-user-role": nextAuthToken.role,
+      });
+
+      // Create new request with updated headers
+      const newRequest = new Request(request, {
+        headers: requestHeaders,
+      });
+
+      // Continue to the API route with the authenticated user
+      return NextResponse.next({
+        request: newRequest,
+      });
+    }
+
+    // No valid session found, return unauthorized
+    console.log("API Middleware - No NextAuth session found, returning 401");
+    return NextResponse.json(
+      {
+        error: "Unauthorized",
+        message: "Authentication required. Please log in to access this resource.",
+        code: "AUTH_REQUIRED",
+      },
+      {
+        status: 401,
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      }
+    );
+  } catch (error) {
+    // Error checking session
+    console.error("API Middleware - Error checking NextAuth token:", error);
+    return NextResponse.json(
+      {
+        error: "Authentication error",
+        message: "An error occurred while checking authentication. Please try again.",
+        code: "AUTH_ERROR",
+      },
+      {
+        status: 401,
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      }
+    );
   }
-
-  console.log("Middleware: Checking authentication state");
-  console.log("Middleware: auth cookie:", authCookie ? "Present" : "Not present");
-  console.log("Middleware: nextauth cookie:", nextAuthSessionCookie ? "Present" : "Not present");
-  console.log("Middleware: isAuthenticated:", isAuthenticated);
-  console.log("Middleware: userRole:", userRole);
-
-  // If it's a protected path and user is not authenticated, redirect to login
-  if (isProtectedPath && !isAuthenticated) {
-    const url = new URL("/login", request.url);
-    url.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(url);
-  }
-
-  // If it's an auth path and user is authenticated, redirect to home
-  if (isAuthPath && isAuthenticated) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
-  // If it's an admin path and the user is not an admin, redirect to login
-  if (isAdminPath && userRole !== "ADMIN") {
-    const url = new URL("/login", request.url);
-    url.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(url);
-  }
-
-  return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     * - api routes (they handle their own auth)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|public|api).*)",
-  ],
+  matcher: "/api/:path*",
 };

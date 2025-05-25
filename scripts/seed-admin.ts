@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import bcryptjs from 'bcryptjs'; // Ganti bcrypt dengan bcryptjs
 import { v4 as uuidv4 } from 'uuid';
 
@@ -10,7 +10,7 @@ const adminConfig = {
   email: 'admin@teelite.com',
   name: 'Admin Teelite',
   password: 'admin123', // Ganti dengan password yang lebih kuat
-  role: UserRole.ADMIN // Gunakan enum UserRole dari Prisma
+  role: 'ADMIN' // Role admin
 };
 
 async function main() {
