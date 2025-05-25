@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
         },
       }),
 
-      // Recent orders (last 5) - simplified to avoid OrderItem.createdAt issue
+      // Recent orders (last 5) - include all required fields for AdminOrder type
       db.order.findMany({
         take: 5,
         orderBy: {
@@ -184,8 +184,11 @@ export async function GET(request: NextRequest) {
                   images: true,
                 },
               },
+              variant: true,
             },
           },
+          shippingDetails: true,
+          paymentDetails: true,
         },
       }),
 

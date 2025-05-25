@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     console.log("Admin Users API - Fetching all users");
@@ -13,17 +15,11 @@ export async function GET(request: NextRequest) {
 
     // Check if user is authenticated and is admin
     if (!userEmail) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     if (userRole !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     // Fetch all users (excluding passwords)
@@ -50,9 +46,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Admin Users API - Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch users" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
   }
 }
