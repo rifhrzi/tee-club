@@ -1,283 +1,231 @@
-// app/login/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { signIn, useSession } from "next-auth/react";
+import React, { useState, useEffect } from "react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { clearStoredRedirectPath } from "@/utils/authRedirect";
-// import { useLoading } from '@/contexts/LoadingContext'; // Keep if used for other global loading indicators
-import LoadingButton from "@/components/LoadingButton";
 
-function UserLogin() {
-  const { data: session, status } = useSession();
+const UserLogin: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false); // Renamed local loading state for clarity
-
-  // const pageLoadingContext = useLoading(); // Only if you need its other functionalities
-
-  const [determinedRedirectPath, setDeterminedRedirectPath] = useState<string>("/");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Check for admin-specific messages and setup
   useEffect(() => {
-    const urlRedirect = searchParams?.get("redirect");
-    const storedRedirect =
-      typeof window !== "undefined" ? localStorage.getItem("auth_redirect") : null;
-    const legacyRedirect =
-      typeof window !== "undefined" ? localStorage.getItem("login_redirect") : null;
-    const messageParam = searchParams?.get("message");
-
-    const finalRedirect = urlRedirect || storedRedirect || legacyRedirect || "/";
-    setDeterminedRedirectPath(finalRedirect);
-
-    console.log("Login page: Determined redirect path:", {
-      urlRedirect,
-      storedRedirect,
-      legacyRedirect,
-      finalRedirectCalculated: finalRedirect,
-      messageParam,
-    });
-
-    // Handle admin-specific messages
-    if (messageParam === "admin-required") {
-      setError("Administrator access required. Please log in with an admin account.");
-      // Pre-fill admin email for convenience
-      setEmail("admin@example.com");
-    }
-
-    const authErrorParam = searchParams?.get("error");
-    if (authErrorParam) {
-      switch (authErrorParam) {
-        case "CredentialsSignin":
-          setError("Invalid email or password. Please try again.");
-          break;
-        default:
-          setError("An error occurred during sign in. Please try again.");
+    const checkSession = async () => {
+      const session = await getSession();
+      if (session) {
+        router.push("/");
       }
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (error) setError("");
-  }, [email, password]);
+    };
+    checkSession();
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError("Email and password are required");
-      return;
-    }
-
-    setIsSubmitting(true); // Use local state
+    setIsSubmitting(true);
     setError("");
-    // pageLoadingContext.startLoading('Signing in...'); // Remove if using local state primarily
 
     try {
       const result = await signIn("credentials", {
-        redirect: false,
         email,
         password,
+        redirect: false,
       });
 
       if (result?.error) {
-        if (result.error === "CredentialsSignin") {
-          setError("The email or password you entered is incorrect. Please try again.");
-        } else if (result.error.includes("Too many login attempts")) {
-          setError("Too many login attempts. Please try again later.");
-        } else {
-          setError(result.error || "Login failed. Please check your credentials.");
-        }
-        // No return here, finally block will run
-      } else if (result?.ok) {
-        // Check for ok and no error explicitly
-        console.log(
-          "Login page: Login successful. Determined redirect path for success:",
-          determinedRedirectPath
-        );
-
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("login_redirect");
-          localStorage.removeItem("auth_redirect");
-          if (clearStoredRedirectPath) clearStoredRedirectPath();
-
-          const pendingCartData = localStorage.getItem("pending_cart_data");
-          if (pendingCartData) {
-            localStorage.setItem("cart-storage", pendingCartData);
-            localStorage.removeItem("pending_cart_data");
-          }
-        }
-        router.push(determinedRedirectPath);
-        // No setIsSubmitting(false) here if navigating away.
-        return; // Successfully navigated, exit function.
+        setError("Invalid email or password");
       } else {
-        // Handle cases where result is not ok but no specific error string from NextAuth perhaps
-        setError(result?.error || "An unknown issue occurred during login.");
+        const session = await getSession();
+        if (session?.user?.role === "admin") {
+          router.push("/admin");
+        } else {
+          router.push("/");
+        }
       }
-    } catch (error: any) {
-      console.error("Login page: Login error (catch block):", error);
-      setError(error.message || "An unexpected error occurred.");
+    } catch (error) {
+      setError("An error occurred during login");
     } finally {
-      setIsSubmitting(false); // Set to false in finally for all paths
-      // pageLoadingContext.stopLoading(); // Remove if using local state primarily
+      setIsSubmitting(false);
     }
   };
 
-  // ... (useEffect for status === 'authenticated' remains largely the same, using determinedRedirectPath) ...
-  // Ensure it does not conflict with isSubmitting
-  useEffect(() => {
-    if (status === "loading") {
-      return;
-    }
-
-    if (status === "authenticated" && session) {
-      console.log(
-        "Login page: User already authenticated. Determined redirect path:",
-        determinedRedirectPath
-      );
-
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("login_redirect");
-        localStorage.removeItem("auth_redirect");
-        if (clearStoredRedirectPath) clearStoredRedirectPath();
-
-        const pendingCartData = localStorage.getItem("pending_cart_data");
-        if (pendingCartData) {
-          localStorage.setItem("cart-storage", pendingCartData);
-          localStorage.removeItem("pending_cart_data");
-        }
-      }
-      router.push(determinedRedirectPath);
-    }
-  }, [status, session, router, determinedRedirectPath]);
-
-  // Quick admin login helper
   const handleQuickAdminLogin = () => {
     setEmail("admin@example.com");
     setPassword("securepassword");
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
-          </h2>
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div
+          className="h-full w-full bg-gray-100"
+          style={{
+            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(0,0,0,0.15) 1px, transparent 0)`,
+            backgroundSize: "20px 20px",
+          }}
+        ></div>
+      </div>
+
+      <div className="relative z-10 w-full max-w-md px-4 sm:px-6">
+        {/* Header with Logo */}
+        <div className="mb-8 text-center">
+          <Link href="/" className="inline-flex items-center space-x-2 text-2xl font-bold text-gray-900">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600 text-white">
+              <span className="text-lg font-bold">T</span>
+            </div>
+            <span>Teelite Club</span>
+          </Link>
+        </div>
+
+        {/* Login Card */}
+        <div className="card p-8">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
+            <p className="mt-2 text-gray-600">Sign in to your account to continue</p>
+          </div>
+
+          {/* Admin Required Message */}
           {searchParams?.get("message") === "admin-required" && (
-            <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-4">
+            <div className="mb-6 rounded-lg border border-primary-200 bg-primary-50 p-4">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                      clipRule="evenodd"
-                    />
+                  <svg className="h-5 w-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-blue-800">
-                    Administrator Login Required
+                  <h3 className="text-sm font-semibold text-primary-800">
+                    Administrator Access Required
                   </h3>
-                  <div className="mt-2 text-sm text-blue-700">
-                    <p>You need admin privileges to access the dashboard.</p>
+                  <div className="mt-2 text-sm text-primary-700">
+                    <p>You need admin privileges to access this area.</p>
                     <button
                       type="button"
                       onClick={handleQuickAdminLogin}
-                      className="mt-2 text-blue-600 underline hover:text-blue-500"
+                      className="mt-2 font-medium text-primary-600 hover:text-primary-500 transition-colors duration-200"
                     >
-                      Click here to fill admin credentials
+                      Use demo admin credentials →
                     </button>
                   </div>
                 </div>
               </div>
             </div>
           )}
-        </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          {/* ... form inputs ... */}
-          <div className="-space-y-px rounded-md shadow-sm">
-                       {" "}
-            <div>
-                           {" "}
-              <label htmlFor="email-address" className="sr-only">
-                Email address
-              </label>
-                           {" "}
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="relative block w-full appearance-none rounded-none rounded-t-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-                         {" "}
-            </div>
-                       {" "}
-            <div>
-                           {" "}
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-                           {" "}
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="relative block w-full appearance-none rounded-none rounded-b-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-                         {" "}
-            </div>
-                     {" "}
-          </div>
+          {/* Error Message */}
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
+            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
               <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">{error}</h3>
+                  <p className="text-sm font-medium text-red-800">{error}</p>
                 </div>
               </div>
             </div>
           )}
-          <div>
-            <LoadingButton
-              type="submit"
-              isLoading={isSubmitting} // Use local isSubmitting state
-              loadingText="Signing in..."
-              className="w-full"
-            >
-              Sign in
-            </LoadingButton>
-          </div>
-          <div className="text-center text-sm">
-                       {" "}
-            <p>
-                            Don't have an account?              {" "}
-              <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                                Sign up              {" "}
+
+          {/* Login Form */}
+          <form className="space-y-6" onSubmit={handleLogin}>
+            <div className="space-y-4">
+              {/* Email Field */}
+              <div>
+                <label htmlFor="email-address" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                    </svg>
+                  </div>
+                  <input
+                    id="email-address"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    className="input pl-10"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    className="input pl-10"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="btn btn-primary btn-lg w-full"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Signing in...
+                  </div>
+                ) : (
+                  "Sign in"
+                )}
+              </button>
+            </div>
+          </form>
+
+          {/* Footer Links */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{" "}
+              <Link href="/signup" className="font-medium text-primary-600 hover:text-primary-500 transition-colors duration-200">
+                Sign up
               </Link>
-                         {" "}
             </p>
-                     {" "}
+            <div className="mt-4">
+              <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200">
+                ← Back to Teelite Club
+              </Link>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
-}
+};
 
 export default UserLogin;

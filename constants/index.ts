@@ -48,8 +48,9 @@ export interface ProductsConfig {
 
 // Constants with proper type annotations
 export const SITE_CONFIG: SiteConfig = {
-  name: "Teelite Club",
-  description: "Premium quality t-shirts designed for style and comfort.",
+  name: "TEELITECLUB",
+  description:
+    "Premium quality t-shirts designed for style and comfort. Discover modern fashion that fits your lifestyle.",
   social: {
     instagram: "https://instagram.com/teeliteclub",
     twitter: "https://twitter.com/teeliteclub",
@@ -93,9 +94,13 @@ export const PRODUCTS: ProductsConfig = {
       id: 1,
       name: "Classic White Tee",
       price: 299000,
-      image: "https://images.pexels.com/photos/1566412/pexels-photo-1566412.jpeg?auto=compress&cs=tinysrgb&w=800",
-      images: ["https://images.pexels.com/photos/1566412/pexels-photo-1566412.jpeg?auto=compress&cs=tinysrgb&w=800"],
-      description: "Kaos putih klasik dengan bahan premium 100% katun yang nyaman dipakai sehari-hari.",
+      image:
+        "https://images.pexels.com/photos/1566412/pexels-photo-1566412.jpeg?auto=compress&cs=tinysrgb&w=800",
+      images: [
+        "https://images.pexels.com/photos/1566412/pexels-photo-1566412.jpeg?auto=compress&cs=tinysrgb&w=800",
+      ],
+      description:
+        "Premium quality white t-shirt made from 100% organic cotton. Perfect for everyday wear with a comfortable, relaxed fit.",
       stock: 50,
       sizes: ["S", "M", "L", "XL"],
     },
@@ -103,9 +108,13 @@ export const PRODUCTS: ProductsConfig = {
       id: 2,
       name: "Urban Black Tee",
       price: 349000,
-      image: "https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&w=800",
-      images: ["https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&w=800"],
-      description: "Kaos hitam urban dengan desain minimalis yang cocok untuk gaya kasual maupun semi-formal.",
+      image:
+        "https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&w=800",
+      images: [
+        "https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&w=800",
+      ],
+      description:
+        "Sleek black t-shirt with modern minimalist design. Made from premium cotton blend for superior comfort and durability.",
       stock: 35,
       sizes: ["M", "L", "XL", "XXL"],
     },
@@ -113,9 +122,13 @@ export const PRODUCTS: ProductsConfig = {
       id: 3,
       name: "Vintage Print Tee",
       price: 399000,
-      image: "https://images.pexels.com/photos/1018911/pexels-photo-1018911.jpeg?auto=compress&cs=tinysrgb&w=800",
-      images: ["https://images.pexels.com/photos/1018911/pexels-photo-1018911.jpeg?auto=compress&cs=tinysrgb&w=800"],
-      description: "Kaos dengan print vintage yang unik, memberikan tampilan retro yang stylish.",
+      image:
+        "https://images.pexels.com/photos/1018911/pexels-photo-1018911.jpeg?auto=compress&cs=tinysrgb&w=800",
+      images: [
+        "https://images.pexels.com/photos/1018911/pexels-photo-1018911.jpeg?auto=compress&cs=tinysrgb&w=800",
+      ],
+      description:
+        "Stylish vintage-inspired print tee with modern fit. Features unique graphic design and soft, breathable fabric.",
       stock: 25,
       sizes: ["S", "M", "L"],
     },

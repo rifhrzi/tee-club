@@ -1,36 +1,64 @@
-import React from 'react';
-import { SITE_CONFIG, PRODUCTS } from '../../constants';
-import Link from 'next/link';
+import React from "react";
+import { SITE_CONFIG } from "../../constants";
+import Link from "next/link";
+import Image from "next/image";
 
 export const Hero = () => {
-    return (
-        <section className="relative mb-16">
-            <div className="text-center mb-12">
-                <h2 className="text-4xl font-bold text-gray-900 mb-4">Welcome to {SITE_CONFIG.name}</h2>
-                <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-4">
-                    {SITE_CONFIG.description}
-                </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <img
-                    src={PRODUCTS.featured.main}
-                    alt="Featured Collection"
-                    className="w-full h-[400px] object-cover rounded-lg shadow-lg"
-                />
-                <div className="grid grid-cols-2 gap-4">
-                    {PRODUCTS.featured.grid.map((image, index) => (
-                        <img
-                            key={index}
-                            src={image}
-                            alt={`Style ${index + 2}`}
-                            className="w-full h-[190px] object-cover rounded-lg shadow-md"
-                        />
-                    ))}
-                    <div className="bg-gray-900 rounded-lg shadow-md flex items-center justify-center cursor-pointer hover:bg-gray-800 transition-colors">
-                        <span className="text-white text-lg font-semibold">View All</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-    );
+  return (
+    <section className="relative flex min-h-screen items-center justify-center overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute inset-0">
+        <Image
+          src="https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080"
+          alt="Premium T-Shirt Collection"
+          fill
+          className="object-cover object-center"
+          priority
+          sizes="100vw"
+        />
+      </div>
+
+      {/* Dark Overlay */}
+      <div className="absolute inset-0 bg-black/50"></div>
+
+      {/* Subtle Pattern Overlay */}
+      <div className="absolute inset-0 opacity-20">
+        <div
+          className="h-full w-full"
+          style={{
+            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)`,
+            backgroundSize: "20px 20px",
+          }}
+        ></div>
+      </div>
+
+      <div className="relative z-10 w-full px-4 text-center sm:px-6">
+        <h1 className="mb-8 text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">
+          Welcome to{" "}
+          <span className="bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
+            {SITE_CONFIG.name}
+          </span>
+        </h1>
+        <p className="mx-auto mb-12 max-w-2xl text-xl leading-8 text-gray-200 sm:text-2xl">
+          {SITE_CONFIG.description}
+        </p>
+        <div className="flex justify-center">
+          <Link
+            href="/shop"
+            className="btn btn-primary btn-lg px-8 py-4 text-lg shadow-lg transition-shadow duration-300 hover:shadow-xl"
+          >
+            <svg className="mr-3 h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+              />
+            </svg>
+            Shop Now
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
 };
