@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useLoading } from "@/contexts/LoadingContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useAuthSync } from "@/hooks/useAuthSync";
+import CheckoutButton from "@/components/CheckoutButton";
 
 const Layout = dynamicImport(() => import("@/components/Layout"), { ssr: false });
 
@@ -23,7 +24,6 @@ export default function CartPage() {
   // Add state to handle hydration and initialization
   const [isHydrated, setIsHydrated] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
   const { startLoading, stopLoading } = useLoading();
 
   // Use the cart store
@@ -71,7 +71,6 @@ export default function CartPage() {
     return () => {
       // Clear loading state when component unmounts (e.g., when navigating away)
       stopLoading();
-      setIsNavigating(false);
     };
   }, [stopLoading]);
 
@@ -276,6 +275,12 @@ export default function CartPage() {
                     <button onClick={clearCart} className="btn btn-secondary">
                       Clear Cart
                     </button>
+                    <CheckoutButton
+                      className="btn btn-primary"
+                      disabled={cart.length === 0}
+                    >
+                      Proceed to Checkout
+                    </CheckoutButton>
                   </div>
                 </div>
               </div>
