@@ -7,7 +7,6 @@ import ProductCard from "@/components/shop/ProductCard";
 import FilterSidebar from "@/components/shop/FilterSidebar";
 import SearchAndSort from "@/components/shop/SearchAndSort";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import AuthDebugger from "@/components/AuthDebugger";
 import { ShopPageSkeleton } from "@/components/skeleton";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
@@ -317,7 +316,6 @@ export default function ShopClient({ products }: { products: Product[] }) {
           onFiltersChange={setFilters}
         />
       </div>
-      <AuthDebugger />
     </Layout>
   );
 }

@@ -9,9 +9,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Toast from "@/components/Toast";
 import { redirectToSignup } from "@/utils/authRedirect";
-import { useLoading } from "@/contexts/LoadingContext";
-import AuthDebugger from "@/components/AuthDebugger";
-import { formatPrice } from "@/constants";
+import { useLoading } from "@/contexts/LoadingContext";import { formatPrice } from "@/constants";
 import ProductImageGallery from "@/components/product/ProductImageGallery";
 import ProductInfo from "@/components/product/ProductInfo";
 import PurchaseControls from "@/components/product/PurchaseControls";
@@ -230,7 +228,6 @@ export default function ProductClient({ product }: { product: Product | null }) 
           type={toastMessage.includes("Failed") ? "error" : "success"}
         />
       )}
-      <AuthDebugger />
 
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto px-4 py-8">

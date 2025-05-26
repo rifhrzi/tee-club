@@ -17,7 +17,7 @@ const HomePage: React.FC = () => {
         </div>
       </main>
       <Footer />
-      <AuthStatus />
+      {/* <AuthStatus /> */}
     </div>
   );
 };

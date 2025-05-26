@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
-import { useAdminDashboard, useAdminOrders } from "@/hooks/useAdminDashboard";
-import { AdminOrder, OrderStatus } from "@/types/admin";
+import { useAdminDashboard } from "@/hooks/useAdminDashboard";
 import ProductManagementTable from "@/components/admin/ProductManagementTable";
 import OrderManagementTable from "@/components/admin/OrderManagementTable";
 
@@ -22,17 +20,7 @@ export default function DashboardPage() {
     error: dashboardError,
     refreshDashboard,
   } = useAdminDashboard();
-  const {
-    ordersData,
-    loading: ordersLoading,
-    error: ordersError,
-    updateOrderStatus,
-  } = useAdminOrders({
-    page: 1,
-    limit: 10,
-    autoRefresh: true,
-    refreshInterval: 30000, // Refresh every 30 seconds
-  });
+
 
   // Debug logging
   useEffect(() => {
@@ -395,63 +383,20 @@ export default function DashboardPage() {
               <div className="rounded-lg bg-white p-6 shadow">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium text-gray-900">Daftar Pelanggan</h3>
-                  <Link
-                    href="/dashboard/customers/new"
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Tambah Pelanggan
-                  </Link>
                 </div>
                 <div className="mt-4">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead>
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Nama
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Email
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Total Pesanan
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Aksi
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {[1, 2, 3].map((customer) => (
-                        <tr key={customer}>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                            Pelanggan {customer}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            customer{customer}@example.com
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                            {formatNumber(5 + customer)}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                              Aktif
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            <Link
-                              href={`/dashboard/customers/${customer}`}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              Detail
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
+                    <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center">
+                      <i className="fas fa-users text-gray-500"></i>
+                    </div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">Customer Management</h4>
+                    <p className="text-gray-600 mb-4">
+                      Customer management functionality will be implemented in a future update.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      For now, you can view customer information through individual orders.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
