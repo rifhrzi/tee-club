@@ -9,13 +9,7 @@ import SearchAndSort from "@/components/shop/SearchAndSort";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import AuthDebugger from "@/components/AuthDebugger";
 import { ShopPageSkeleton } from "@/components/skeleton";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  MagnifyingGlassIcon,
-  Squares2X2Icon,
-  ListBulletIcon,
-} from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
 // Import Layout with dynamic import to avoid hydration issues
 const Layout = dynamic(() => import("@/components/Layout"), { ssr: false });

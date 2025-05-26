@@ -12,7 +12,11 @@ interface FilterSidebarProps {
     inStock: boolean;
     rating: number;
   };
-  onFiltersChange: (filters: any) => void;
+  onFiltersChange: (filters: {
+    priceRange: [number, number];
+    inStock: boolean;
+    rating: number;
+  }) => void;
 }
 
 export default function FilterSidebar({
