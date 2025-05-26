@@ -21,10 +21,6 @@ export default function ProductImageGallery({ images, productName }: ProductImag
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
-  // Debug logging
-  console.log('ProductImageGallery - Raw images:', images);
-  console.log('ProductImageGallery - Product name:', productName);
-
   // Filter and validate images (support both URLs and local paths)
   const validImages =
     images?.filter((img) => {
