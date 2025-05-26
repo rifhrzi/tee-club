@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-import useCartStore from '@/store/cartStore';
-import { useSession } from 'next-auth/react';
-import Layout from '@/components/Layout';
-import AuthGuard from '@/components/AuthGuard';
-
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import useCartStore from "@/store/cartStore";
+import { useSession } from "next-auth/react";
+import { useUnifiedAuth, useRequireAuth } from "@/hooks/useUnifiedAuth";
+import Layout from "@/components/Layout";
 
 // Force this page to be client-side only
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function Checkout() {
   return (
@@ -26,121 +25,138 @@ export default function Checkout() {
 
 function CheckoutContent() {
   const router = useRouter();
-  const cart = useCartStore(state => state.cart);
+  const cart = useCartStore((state) => state.cart);
   const { data: session, status } = useSession();
-  const user = session?.user;
+  const auth = useUnifiedAuth();
+  const requireAuth = useRequireAuth("/login");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isClient, setIsClient] = useState(false);
+  const [error, setError] = useState("");
 
   // Form data state for restoration after login
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    postalCode: ''
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    postalCode: "",
   });
 
-  // Set isClient to true when component mounts and restore form data if available
+  // Set up form data restoration and handle authentication redirects
   useEffect(() => {
-    setIsClient(true);
-
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       // Clear redirect tracking
-      localStorage.removeItem('checkout_redirect_attempts');
-      localStorage.removeItem('login_redirect');
+      localStorage.removeItem("checkout_redirect_attempts");
+      localStorage.removeItem("login_redirect");
 
       // Check for stored form data
-      const storedFormData = localStorage.getItem('checkout_form_data');
+      const storedFormData = localStorage.getItem("checkout_form_data");
       if (storedFormData) {
         try {
           const parsedData = JSON.parse(storedFormData);
-          console.log('Found stored checkout form data, restoring fields');
+          console.log("Found stored checkout form data, restoring fields");
           setFormData(parsedData);
 
           // Remove the stored data after restoring
-          localStorage.removeItem('checkout_form_data');
+          localStorage.removeItem("checkout_form_data");
         } catch (error) {
-          console.error('Error parsing stored checkout form data:', error);
-          localStorage.removeItem('checkout_form_data');
+          console.error("Error parsing stored checkout form data:", error);
+          localStorage.removeItem("checkout_form_data");
         }
       }
     }
   }, []);
 
-  // Simple auth state logging (AuthGuard handles the heavy lifting)
+  // Handle authentication redirects using unified auth
   useEffect(() => {
-    if (!isClient) return;
+    if (!auth.isReady) return;
 
-    console.log('Checkout page - Auth state:', {
-      status,
-      isAuthenticated: status === 'authenticated',
-      userEmail: session?.user?.email || 'not logged in'
+    console.log("Checkout page - Unified auth state:", {
+      isAuthenticated: auth.isAuthenticated,
+      isLoading: auth.isLoading,
+      isReady: auth.isReady,
+      userEmail: auth.userEmail || "not logged in",
     });
-  }, [status, isClient, session?.user?.email]);
+
+    if (requireAuth.shouldRedirect && requireAuth.redirectUrl) {
+      console.log("Checkout requires authentication, redirecting to:", requireAuth.redirectUrl);
+      router.push(requireAuth.redirectUrl);
+    } else if (auth.isAuthenticated) {
+      console.log("User is authenticated:", auth.userEmail);
+    }
+  }, [
+    auth.isReady,
+    auth.isAuthenticated,
+    auth.isLoading,
+    auth.userEmail,
+    requireAuth.shouldRedirect,
+    requireAuth.redirectUrl,
+    router,
+  ]);
 
   const handleCheckout = async (event: React.FormEvent<HTMLFormElement>) => {
     // Prevent the default form submission which would cause a page refresh
     event.preventDefault();
 
-    console.log('Checkout form submitted, preventing default page refresh');
+    console.log("Checkout form submitted, preventing default page refresh");
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       if (cart.length === 0) {
-        throw new Error('Your cart is empty. Please add items to your cart before checkout.');
+        throw new Error("Your cart is empty. Please add items to your cart before checkout.");
       }
 
-      // Check authentication status again before proceeding
-      if (status === 'loading') {
-        console.log('Authentication status is still loading, waiting...');
+      // Check authentication status again before proceeding using unified auth
+      if (auth.isLoading) {
+        console.log("Authentication status is still loading, waiting...");
         setLoading(false);
         return;
       }
 
-      if (status !== 'authenticated' || !session || !user) {
+      if (!auth.isAuthenticated || !auth.user) {
         // Log detailed authentication state for debugging
-        console.log('Checkout - Authentication check before proceeding:', {
-          status,
-          isAuthenticated: status === 'authenticated',
-          session: !!session,
-          user: !!user
+        console.log("Checkout - Authentication check before proceeding:", {
+          isAuthenticated: auth.isAuthenticated,
+          isLoading: auth.isLoading,
+          isReady: auth.isReady,
+          user: !!auth.user,
         });
 
-        console.log('Checkout requires authentication, redirecting to login');
+        console.log("Checkout requires authentication, redirecting to login");
 
         // Store checkout data in localStorage to restore after login
-        if (typeof window !== 'undefined') {
+        if (typeof window !== "undefined") {
           const formElement = event.currentTarget as HTMLFormElement;
           const formData = new FormData(formElement);
 
-          localStorage.setItem('checkout_form_data', JSON.stringify({
-            name: formData.get('name') || '',
-            email: formData.get('email') || '',
-            phone: formData.get('phone') || '',
-            address: formData.get('address') || '',
-            city: formData.get('city') || '',
-            postalCode: formData.get('postalCode') || '',
-            timestamp: new Date().toISOString()
-          }));
-          console.log('Stored checkout form data for restoration after login');
+          localStorage.setItem(
+            "checkout_form_data",
+            JSON.stringify({
+              name: formData.get("name") || "",
+              email: formData.get("email") || "",
+              phone: formData.get("phone") || "",
+              address: formData.get("address") || "",
+              city: formData.get("city") || "",
+              postalCode: formData.get("postalCode") || "",
+              timestamp: new Date().toISOString(),
+            })
+          );
+          console.log("Stored checkout form data for restoration after login");
         }
 
-        router.push('/login?redirect=/checkout');
+        router.push("/login?redirect=/checkout");
         return;
       }
 
       // Log authentication status
-      console.log('Proceeding with authenticated checkout for:', user.email);
+      console.log("Proceeding with authenticated checkout for:", auth.userEmail);
 
       const formData = new FormData(event.currentTarget);
-      const transformedItems = cart.map(item => {
+      const transformedItems = cart.map((item) => {
         const transformedItem: any = {
           productId: String(item.product.id),
-          quantity: item.quantity
+          quantity: item.quantity,
         };
         const product = item.product as any;
         if (product.variantId) {
@@ -149,137 +165,146 @@ function CheckoutContent() {
         return transformedItem;
       });
 
-      const phoneInput = formData.get('phone') as string;
-      const formattedPhone = phoneInput.startsWith('0')
+      const phoneInput = formData.get("phone") as string;
+      const formattedPhone = phoneInput.startsWith("0")
         ? phoneInput
-        : phoneInput.startsWith('+62')
-          ? phoneInput.replace('+62', '0')
-          : phoneInput.startsWith('62')
-            ? phoneInput.replace('62', '0')
+        : phoneInput.startsWith("+62")
+          ? phoneInput.replace("+62", "0")
+          : phoneInput.startsWith("62")
+            ? phoneInput.replace("62", "0")
             : `0${phoneInput}`;
 
       // Prepare headers for the API request
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       };
 
       // Add user ID header for debugging
       // The API middleware will handle authentication via NextAuth session
-      console.log('Using NextAuth session for authorization');
+      console.log("Using NextAuth session for authorization");
 
       // Store the user ID in a custom header for debugging
-      if (user?.id) {
-        headers['x-nextauth-user-id-debug'] = user.id;
+      if (auth.userId) {
+        headers["x-nextauth-user-id-debug"] = auth.userId;
       }
 
       // Log all cookies for debugging
-      console.log('Checkout page - Cookies before API request:');
-      document.cookie.split(';').forEach(cookie => {
-        console.log('  ', cookie.trim());
+      console.log("Checkout page - Cookies before API request:");
+      document.cookie.split(";").forEach((cookie) => {
+        console.log("  ", cookie.trim());
       });
 
       // Log the session data
-      console.log('Checkout page - Session data:', {
+      console.log("Checkout page - Session data:", {
         id: session?.user?.id,
         email: session?.user?.email,
-        name: session?.user?.name
+        name: session?.user?.name,
       });
 
-      console.log('Sending checkout request with items:', transformedItems.length);
+      console.log("Sending checkout request with items:", transformedItems.length);
 
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
+      const response = await fetch("/api/checkout", {
+        method: "POST",
         headers,
+        credentials: "include", // Important: Include cookies for authentication
         body: JSON.stringify({
           items: transformedItems,
           shippingDetails: {
-            name: formData.get('name'),
-            email: formData.get('email'),
+            name: formData.get("name"),
+            email: formData.get("email"),
             phone: formattedPhone,
-            address: formData.get('address'),
-            city: formData.get('city'),
-            postalCode: formData.get('postalCode'),
+            address: formData.get("address"),
+            city: formData.get("city"),
+            postalCode: formData.get("postalCode"),
           },
         }),
       });
 
-      console.log('Checkout API response status:', response.status);
+      console.log("Checkout API response status:", response.status);
       const data = await response.json();
-      console.log('Checkout API response data:', data);
+      console.log("Checkout API response data:", data);
 
       if (!response.ok) {
-        console.log('Checkout API error response:', {
+        console.log("Checkout API error response:", {
           status: response.status,
-          data
+          data,
         });
 
         if (response.status === 401) {
-          console.log('Authentication error during checkout, redirecting to login');
+          console.log("Authentication error during checkout, redirecting to login");
 
           // Store checkout data in localStorage to restore after login
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('checkout_form_data', JSON.stringify({
-              name: formData.get('name'),
-              email: formData.get('email'),
-              phone: formData.get('phone'),
-              address: formData.get('address'),
-              city: formData.get('city'),
-              postalCode: formData.get('postalCode'),
-              timestamp: new Date().toISOString()
-            }));
-            console.log('Stored checkout form data for restoration after login');
+          if (typeof window !== "undefined") {
+            localStorage.setItem(
+              "checkout_form_data",
+              JSON.stringify({
+                name: formData.get("name"),
+                email: formData.get("email"),
+                phone: formData.get("phone"),
+                address: formData.get("address"),
+                city: formData.get("city"),
+                postalCode: formData.get("postalCode"),
+                timestamp: new Date().toISOString(),
+              })
+            );
+            console.log("Stored checkout form data for restoration after login");
           }
 
           // Redirect to login with checkout as the redirect destination
-          router.push('/login?redirect=/checkout');
+          router.push("/login?redirect=/checkout");
           return;
         }
 
         if (response.status === 400 && data.details) {
-          const validationErrors = data.details.map((error: any) => {
-            const path = error.path.join('.');
-            return `${path}: ${error.message}`;
-          }).join('\n');
+          const validationErrors = data.details
+            .map((error: any) => {
+              const path = error.path.join(".");
+              return `${path}: ${error.message}`;
+            })
+            .join("\n");
           throw new Error(`Validation errors:\n${validationErrors}`);
         }
 
-        throw new Error(data.error || data.message || 'Checkout failed');
+        throw new Error(data.error || data.message || "Checkout failed");
       }
 
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         // Store order information
         if (data.orderId) {
-          localStorage.setItem('pending_order_id', data.orderId);
-          console.log('Stored pending order ID:', data.orderId);
+          localStorage.setItem("pending_order_id", data.orderId);
+          console.log("Stored pending order ID:", data.orderId);
         }
 
         // Store NextAuth session information if available
-        if (status === 'authenticated' && session) {
-          localStorage.setItem('nextauth_checkout_session', JSON.stringify({
-            user: {
-              id: session.user.id,
-              email: session.user.email,
-              name: session.user.name
-            },
-            timestamp: new Date().toISOString()
-          }));
-          console.log('Stored NextAuth session info for payment return');
+        if (status === "authenticated" && session) {
+          localStorage.setItem(
+            "nextauth_checkout_session",
+            JSON.stringify({
+              user: {
+                id: session.user.id,
+                email: session.user.email,
+                name: session.user.name,
+              },
+              timestamp: new Date().toISOString(),
+            })
+          );
+          console.log("Stored NextAuth session info for payment return");
         }
 
         // Store the return URL
-        localStorage.setItem('checkout_return_url', window.location.href);
+        localStorage.setItem("checkout_return_url", window.location.href);
       }
 
       // Log the redirect
-      console.log('Redirecting to payment gateway:', data.redirectUrl);
+      console.log("Redirecting to payment gateway:", data.redirectUrl);
 
       // Use window.location for external redirects
       // This is necessary for Midtrans payment gateway
       // We've stored auth state above to handle return from payment
       window.location.href = data.redirectUrl;
     } catch (error) {
-      console.error('Checkout error:', error);
-      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      console.error("Checkout error:", error);
+      setError(error instanceof Error ? error.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -287,120 +312,145 @@ function CheckoutContent() {
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-2xl p-4 sm:p-6 lg:p-8">
         {/* ... (h1, error display, form inputs as before) ... */}
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">Checkout Details</h1>
+        <h1 className="mb-6 text-2xl font-bold text-gray-800 sm:mb-8 sm:text-3xl">
+          Checkout Details
+        </h1>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 shadow-sm" role="alert">
+          <div
+            className="mb-6 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700 shadow-sm"
+            role="alert"
+          >
             <p className="font-semibold">Error:</p>
             <p>{error}</p>
           </div>
         )}
 
-        {/* AuthGuard handles authentication, so we can directly show the form */}
-        {!isClient ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            <p className="mt-2 text-gray-600">Loading checkout...</p>
+        {/* Show loading state when authentication is being checked */}
+        {auth.isLoading || !auth.isReady ? (
+          <div className="py-8 text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
+            <p className="mt-2 text-gray-600">Verifying authentication...</p>
+          </div>
+        ) : !auth.isAuthenticated ? (
+          <div className="mb-4 rounded border border-yellow-400 bg-yellow-100 px-4 py-3 text-yellow-700">
+            <p>You need to be logged in to checkout.</p>
+            <p className="mt-2">
+              <Link href="/login?redirect=/checkout" className="text-blue-600 hover:underline">
+                Click here to log in
+              </Link>
+            </p>
           </div>
         ) : (
-          <form onSubmit={handleCheckout} className="space-y-6 bg-white p-6 shadow-lg rounded-lg">
-          {/* ... (all your form input divs: name, email, phone, address, city, postalCode) ... */}
-          {/* For example: */}
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-            <input
-              type="text"
-              name="name"
-              id="name"
-              required
-              defaultValue={formData.name}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              placeholder="John Doe"
-            />
-          </div>
-          {/* (Include all other input fields here as they were in the previous full code) */}
-           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-            <input
-              type="email"
-              name="email"
-              id="email"
-              required
-              defaultValue={formData.email}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              placeholder="you@example.com"
-            />
-          </div>
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-            <input
-              type="tel"
-              name="phone"
-              id="phone"
-              required
-              defaultValue={formData.phone}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              placeholder="08123456789"
-              pattern="(\+62|62|0)8[1-9][0-9]{6,10}"
-              title="Enter a valid Indonesian phone number (e.g., 08123456789, +628123456789)."
-            />
-             <p className="mt-1 text-xs text-gray-500">Format: 08xxxx, +628xxxx, or 628xxxx</p>
-          </div>
-          <div>
-            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Full Address</label>
-            <textarea
-              name="address"
-              id="address"
-              required
-              rows={3}
-              defaultValue={formData.address}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              placeholder="123 Main St, Apartment 4B"
-            />
-          </div>
-          <div>
-            <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">City</label>
-            <input
-              type="text"
-              name="city"
-              id="city"
-              required
-              defaultValue={formData.city}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              placeholder="Jakarta"
-            />
-          </div>
-          <div>
-            <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
-            <input
-              type="text"
-              name="postalCode"
-              id="postalCode"
-              required
-              defaultValue={formData.postalCode}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              placeholder="12345"
-              pattern="\d{5}"
-              title="Postal code must be 5 digits."
-            />
-            <p className="mt-1 text-xs text-gray-500">Enter a 5-digit postal code.</p>
-          </div>
+          <form onSubmit={handleCheckout} className="space-y-6 rounded-lg bg-white p-6 shadow-lg">
+            {/* ... (all your form input divs: name, email, phone, address, city, postalCode) ... */}
+            {/* For example: */}
+            <div>
+              <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
+                Full Name
+              </label>
+              <input
+                type="text"
+                name="name"
+                id="name"
+                required
+                defaultValue={formData.name}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="John Doe"
+              />
+            </div>
+            {/* (Include all other input fields here as they were in the previous full code) */}
+            <div>
+              <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
+                Email Address
+              </label>
+              <input
+                type="email"
+                name="email"
+                id="email"
+                required
+                defaultValue={formData.email}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="you@example.com"
+              />
+            </div>
+            <div>
+              <label htmlFor="phone" className="mb-1 block text-sm font-medium text-gray-700">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                id="phone"
+                required
+                defaultValue={formData.phone}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="08123456789"
+                pattern="(\+62|62|0)8[1-9][0-9]{6,10}"
+                title="Enter a valid Indonesian phone number (e.g., 08123456789, +628123456789)."
+              />
+              <p className="mt-1 text-xs text-gray-500">Format: 08xxxx, +628xxxx, or 628xxxx</p>
+            </div>
+            <div>
+              <label htmlFor="address" className="mb-1 block text-sm font-medium text-gray-700">
+                Full Address
+              </label>
+              <textarea
+                name="address"
+                id="address"
+                required
+                rows={3}
+                defaultValue={formData.address}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="123 Main St, Apartment 4B"
+              />
+            </div>
+            <div>
+              <label htmlFor="city" className="mb-1 block text-sm font-medium text-gray-700">
+                City
+              </label>
+              <input
+                type="text"
+                name="city"
+                id="city"
+                required
+                defaultValue={formData.city}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="Jakarta"
+              />
+            </div>
+            <div>
+              <label htmlFor="postalCode" className="mb-1 block text-sm font-medium text-gray-700">
+                Postal Code
+              </label>
+              <input
+                type="text"
+                name="postalCode"
+                id="postalCode"
+                required
+                defaultValue={formData.postalCode}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="12345"
+                pattern="\d{5}"
+                title="Postal code must be 5 digits."
+              />
+              <p className="mt-1 text-xs text-gray-500">Enter a 5-digit postal code.</p>
+            </div>
 
-
-          <div className="pt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150 ${
-                loading ? 'opacity-60 cursor-not-allowed' : ''
-              }`}
-            >
-              {loading ? 'Processing Order...' : 'Place Order & Proceed to Payment'}
-            </button>
-          </div>
-        </form>
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className={`flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors duration-150 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  loading ? "cursor-not-allowed opacity-60" : ""
+                }`}
+              >
+                {loading ? "Processing Order..." : "Place Order & Proceed to Payment"}
+              </button>
+            </div>
+          </form>
         )}
       </div>
     </Layout>

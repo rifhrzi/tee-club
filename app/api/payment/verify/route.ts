@@ -10,10 +10,13 @@ export async function GET(request: Request) {
 
     if (!nextAuthUserId) {
       console.log("Payment Verify API - No NextAuth user ID, returning 401");
-      return NextResponse.json({
-        error: "Unauthorized",
-        message: "Authentication required"
-      }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: "Authentication required",
+        },
+        { status: 401 }
+      );
     }
 
     const user = await db.user.findUnique({
@@ -22,10 +25,13 @@ export async function GET(request: Request) {
 
     if (!user) {
       console.log("Payment Verify API - User not found for ID:", nextAuthUserId);
-      return NextResponse.json({
-        error: "User not found",
-        message: "The user associated with this authentication could not be found"
-      }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: "User not found",
+          message: "The user associated with this authentication could not be found",
+        },
+        { status: 404 }
+      );
     }
 
     const url = new URL(request.url);
@@ -51,7 +57,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (order.userId !== userId) {
+    if (order.userId !== nextAuthUserId) {
       console.log("Payment Verify API - Unauthorized access to order:", orderId);
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
@@ -76,6 +82,9 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("Payment verification error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: "Failed to verify payment", message: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to verify payment", message: errorMessage },
+      { status: 500 }
+    );
   }
 }

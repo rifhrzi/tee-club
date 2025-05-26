@@ -34,7 +34,7 @@ const dummyOrder: Order = {
       quantity: 2,
       price: 150000,
       image:
-        "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+        "https://images.pexels.com/photos/1656684/pexels-photo-1656684.jpeg?auto=compress&cs=tinysrgb&w=256&h=256",
     },
     {
       id: "ITEM002",
@@ -43,7 +43,7 @@ const dummyOrder: Order = {
       quantity: 1,
       price: 350000,
       image:
-        "https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+        "https://images.pexels.com/photos/1484807/pexels-photo-1484807.jpeg?auto=compress&cs=tinysrgb&w=256&h=256",
     },
   ],
   shipping: {
