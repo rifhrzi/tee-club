@@ -38,7 +38,13 @@ export default function ProductInfo({
   const [isWishlisted, setIsWishlisted] = React.useState(false);
 
   const currentPrice = selectedVariant ? selectedVariant.price : product.price;
-  const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
+
+  // Calculate stock correctly based on variants
+  const currentStock = selectedVariant
+    ? selectedVariant.stock
+    : product.variants.length > 0
+      ? product.variants.reduce((total, variant) => total + variant.stock, 0)
+      : product.stock;
 
   const handleWishlistToggle = () => {
     setIsWishlisted(!isWishlisted);
@@ -123,7 +129,11 @@ export default function ProductInfo({
               }`}
             >
               <div className="font-medium">Default</div>
-              <div className="mt-1 text-sm text-gray-500">Stock: {product.stock}</div>
+              <div className="mt-1 text-sm text-gray-500">
+                Stock: {product.variants.length > 0
+                  ? product.variants.reduce((total, variant) => total + variant.stock, 0)
+                  : product.stock}
+              </div>
               <div className="mt-1 text-sm font-semibold">{formatPrice(product.price)}</div>
               {!selectedVariant && (
                 <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary-600"></div>
