@@ -105,9 +105,10 @@ export default function ProductImageGallery({ images, productName }: ProductImag
           <Image
             src={imagesToUse[currentImageIndex]}
             alt={`${productName} - Image ${currentImageIndex + 1}`}
-            fill
+            width={600}
+            height={600}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             onLoad={handleImageLoad}
             onError={handleImageError}
             priority={currentImageIndex === 0}
@@ -160,9 +161,10 @@ export default function ProductImageGallery({ images, productName }: ProductImag
               <Image
                 src={image}
                 alt={`${productName} thumbnail ${index + 1}`}
-                fill
+                width={64}
+                height={64}
                 sizes="64px"
-                className="object-cover"
+                className="h-full w-full object-cover"
               />
             </button>
           ))}

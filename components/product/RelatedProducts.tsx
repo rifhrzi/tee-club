@@ -89,7 +89,7 @@ export default function RelatedProducts({ currentProductId }: RelatedProductsPro
     >
       <div className="flex items-center justify-between mb-8">
         <h2 className="text-2xl font-bold text-gray-900">Related Products</h2>
-        
+
         {products.length > 4 && (
           <div className="flex space-x-2">
             <button
@@ -129,21 +129,22 @@ export default function RelatedProducts({ currentProductId }: RelatedProductsPro
                     <Image
                       src={product.images?.[0] || '/placeholder-image.svg'}
                       alt={product.name}
-                      fill
+                      width={300}
+                      height={300}
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                      className="object-cover transition-all duration-300 group-hover:scale-105"
+                      className="h-full w-full object-cover transition-all duration-300 group-hover:scale-105"
                     />
-                    
+
                     {/* Overlay on hover */}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300" />
-                    
+
                     {/* Stock badge */}
                     {product.stock === 0 && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                         <span className="text-white font-semibold">Out of Stock</span>
                       </div>
                     )}
-                    
+
                     {product.stock > 0 && product.stock < 5 && (
                       <div className="absolute top-3 left-3">
                         <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-1 rounded-full">
@@ -161,12 +162,12 @@ export default function RelatedProducts({ currentProductId }: RelatedProductsPro
                     <p className="text-gray-600 text-sm mt-1 line-clamp-2">
                       {product.description}
                     </p>
-                    
+
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-xl font-bold text-primary-600">
                         {formatPrice(product.price)}
                       </span>
-                      
+
                       {/* Rating */}
                       <div className="flex items-center space-x-1">
                         {[...Array(5)].map((_, i) => (

@@ -55,9 +55,10 @@ export default function ProductCard({ product, viewMode, index }: ProductCardPro
                 <Image
                   src={product.images?.[0] || "/placeholder-image.svg"}
                   alt={product.name}
-                  fill
+                  width={192}
+                  height={192}
                   sizes="192px"
-                  className={`rounded-l-xl object-cover transition-all duration-300 group-hover:scale-105 ${
+                  className={`h-full w-full rounded-l-xl object-cover transition-all duration-300 group-hover:scale-105 ${
                     imageLoading ? "opacity-0" : "opacity-100"
                   }`}
                   onLoad={() => setImageLoading(false)}
@@ -153,9 +154,10 @@ export default function ProductCard({ product, viewMode, index }: ProductCardPro
           <Image
             src={product.images?.[0] || "/placeholder-image.svg"}
             alt={product.name}
-            fill
+            width={400}
+            height={300}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className={`object-cover transition-all duration-300 group-hover:scale-105 ${
+            className={`h-full w-full object-cover transition-all duration-300 group-hover:scale-105 ${
               imageLoading ? "opacity-0" : "opacity-100"
             }`}
             onLoad={() => setImageLoading(false)}
