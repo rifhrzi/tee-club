@@ -94,14 +94,17 @@ export async function PATCH(
     const body = await request.json();
     console.log("Admin Product API - Update request body:", JSON.stringify(body, null, 2));
 
-    const updateData = { ...body };
+    // Extract variants data for separate handling
+    const { variants, ...productData } = body;
+
+    const updateData = { ...productData };
     delete updateData.id; // Remove id from update data
     delete updateData.createdAt; // Remove createdAt from update data
     delete updateData.updatedAt; // Remove updatedAt from update data
     delete updateData._count; // Remove _count from update data
-    delete updateData.variants; // Remove variants from update data (handle separately if needed)
 
-    console.log("Admin Product API - Cleaned update data:", JSON.stringify(updateData, null, 2));
+    console.log("Admin Product API - Cleaned product data:", JSON.stringify(updateData, null, 2));
+    console.log("Admin Product API - Variants data:", JSON.stringify(variants, null, 2));
 
     // Validate numeric fields if provided
     if (updateData.price !== undefined && updateData.price < 0) {
@@ -118,6 +121,30 @@ export async function PATCH(
       );
     }
 
+    // Validate variants if provided
+    if (variants && Array.isArray(variants)) {
+      for (const variant of variants) {
+        if (!variant.name || variant.name.trim() === "") {
+          return NextResponse.json(
+            { error: "Variant name is required" },
+            { status: 400 }
+          );
+        }
+        if (variant.price < 0) {
+          return NextResponse.json(
+            { error: "Variant price must be non-negative" },
+            { status: 400 }
+          );
+        }
+        if (variant.stock < 0) {
+          return NextResponse.json(
+            { error: "Variant stock must be non-negative" },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Check if product exists
     const existingProduct = await db.product.findUnique({
       where: { id: params.id },
@@ -130,25 +157,88 @@ export async function PATCH(
       );
     }
 
-    // Update product
+    // Update product and variants in a transaction
     console.log("Admin Product API - Attempting to update product with data:", updateData);
 
-    const updatedProduct = await db.product.update({
-      where: {
-        id: params.id,
-      },
-      data: {
-        ...updateData,
-        updatedAt: new Date(),
-      },
-      include: {
-        variants: true,
-        _count: {
-          select: {
-            orderItems: true,
+    const updatedProduct = await db.$transaction(async (tx) => {
+      // Update the main product
+      const product = await tx.product.update({
+        where: {
+          id: params.id,
+        },
+        data: {
+          ...updateData,
+          updatedAt: new Date(),
+        },
+      });
+
+      // Handle variants if provided
+      if (variants && Array.isArray(variants)) {
+        console.log("Admin Product API - Processing variants update");
+
+        // Get existing variants
+        const existingVariants = await tx.variant.findMany({
+          where: { productId: params.id },
+        });
+
+        // Delete variants that are no longer in the update
+        const variantIdsToKeep = variants
+          .filter(v => v.id)
+          .map(v => v.id);
+
+        const variantsToDelete = existingVariants.filter(
+          v => !variantIdsToKeep.includes(v.id)
+        );
+
+        if (variantsToDelete.length > 0) {
+          await tx.variant.deleteMany({
+            where: {
+              id: { in: variantsToDelete.map(v => v.id) },
+            },
+          });
+          console.log(`Admin Product API - Deleted ${variantsToDelete.length} variants`);
+        }
+
+        // Update or create variants
+        for (const variant of variants) {
+          if (variant.id) {
+            // Update existing variant
+            await tx.variant.update({
+              where: { id: variant.id },
+              data: {
+                name: variant.name,
+                price: variant.price,
+                stock: variant.stock,
+                updatedAt: new Date(),
+              },
+            });
+          } else {
+            // Create new variant
+            await tx.variant.create({
+              data: {
+                productId: params.id,
+                name: variant.name,
+                price: variant.price,
+                stock: variant.stock,
+              },
+            });
+          }
+        }
+        console.log(`Admin Product API - Processed ${variants.length} variants`);
+      }
+
+      // Return the updated product with variants
+      return await tx.product.findUnique({
+        where: { id: params.id },
+        include: {
+          variants: true,
+          _count: {
+            select: {
+              orderItems: true,
+            },
           },
         },
-      },
+      });
     });
 
     console.log(`Admin Product API - Updated product ${params.id} successfully`);
