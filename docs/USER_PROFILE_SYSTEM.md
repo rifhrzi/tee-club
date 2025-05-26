@@ -53,11 +53,11 @@ model User {
   defaultAddressCity      String?
   defaultAddressPostalCode String?
   orders        Order[]
-  refreshTokens RefreshToken[]
   stockHistory  StockHistory[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
+// Note: RefreshToken model removed as part of NextAuth.js migration
 ```
 
 ### Migration Applied

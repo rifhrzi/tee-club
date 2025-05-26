@@ -83,11 +83,8 @@ async function cleanDatabase() {
       console.log(`  - No orphaned stock history records found`);
     }
 
-    // Remove expired refresh tokens
-    const expiredTokens = await prisma.refreshToken.deleteMany({
-      where: { expiresAt: { lt: new Date() } },
-    });
-    console.log(`  - Removed ${expiredTokens.count} expired refresh tokens`);
+    // Note: RefreshToken model has been removed as part of NextAuth.js migration
+    // No longer need to clean up refresh tokens
 
     // 3. Update admin user with production-ready data
     console.log("\n👤 Updating admin user...");
@@ -126,7 +123,6 @@ async function cleanDatabase() {
       prisma.order.count(),
       prisma.variant.count(),
       prisma.stockHistory.count(),
-      prisma.refreshToken.count(),
     ]);
 
     console.log(`  - Users: ${finalStats[0]}`);
@@ -134,7 +130,6 @@ async function cleanDatabase() {
     console.log(`  - Orders: ${finalStats[2]}`);
     console.log(`  - Variants: ${finalStats[3]}`);
     console.log(`  - Stock History: ${finalStats[4]}`);
-    console.log(`  - Refresh Tokens: ${finalStats[5]}`);
 
     console.log("\n✅ Database cleanup completed successfully!");
     console.log("\n🔐 Admin credentials:");

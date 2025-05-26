@@ -1,22 +1,10 @@
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role?: string;
-}
+// Legacy authentication types - kept for reference but not used with NextAuth.js
+// NextAuth.js uses its own type definitions in app/next-auth.d.ts
 
-export interface PersistedAuthState {
-  isAuthenticated: boolean;
-  user: User | null;
-  token: string | null;
-  refreshToken: string | null;
-}
+// Note: These types are no longer used in the application.
+// The application now uses NextAuth.js built-in types:
+// - Session from 'next-auth'
+// - User from 'next-auth' (extended in app/next-auth.d.ts)
+// - JWT from 'next-auth/jwt' (extended in app/next-auth.d.ts)
 
-export interface TokenPayload {
-  userId?: string; // Allow userId from JWT
-  id?: string; // Allow id as fallback
-  role?: string; // Optional role
-  type?: string; // Seen in logs (e.g., 'access')
-  iat?: number; // Issued at
-  exp?: number; // Expiration
-}
+// This file can be safely removed in the future if no legacy code references these types.

@@ -90,9 +90,7 @@ async function checkDatabaseState() {
       console.log(`  - ${variant.name} (${variant.product.name}) - $${variant.price} - Stock: ${variant.stock}`);
     });
 
-    // Check Refresh Tokens
-    const refreshTokens = await prisma.refreshToken.count();
-    console.log(`\n🔑 Refresh Tokens: ${refreshTokens}`);
+    // Note: RefreshToken model has been removed as part of NextAuth.js migration
 
     // Check Stock History
     const stockHistory = await prisma.stockHistory.count();

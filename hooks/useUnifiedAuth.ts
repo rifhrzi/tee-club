@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 
 /**
  * Unified Authentication Hook
- * 
+ *
  * This hook provides a single source of truth for authentication state
  * across the entire application, eliminating conflicts between different
  * authentication systems.
@@ -25,7 +25,7 @@ export function useUnifiedAuth() {
     if (!isClient) return;
 
     console.log('useUnifiedAuth: Session status changed:', status);
-    
+
     if (status === 'loading') {
       setIsReady(false);
     } else if (status === 'authenticated') {
@@ -38,13 +38,15 @@ export function useUnifiedAuth() {
   }, [status, session, isClient]);
 
   // Clean up any legacy authentication data
+  // TODO: This cleanup code can be removed in the future as no legacy authentication
+  // data exists in the current application. Keeping for now as a safety measure.
   useEffect(() => {
     if (!isClient) return;
 
     // Clear any legacy auth storage that might conflict
     const legacyKeys = [
       'auth-storage',
-      'auth_storage', 
+      'auth_storage',
       'simple-auth-storage'
     ];
 
@@ -81,7 +83,7 @@ export function useUnifiedAuth() {
     // Helper methods
     isLoggedIn: status === 'authenticated' && !!session,
     isGuest: status === 'unauthenticated',
-    
+
     // User information
     userId: session?.user?.id || null,
     userEmail: session?.user?.email || null,
@@ -156,7 +158,7 @@ export function useNextAuthCookieCheck() {
 
       const hasValidCookie = cookies.some(cookie => {
         const trimmedCookie = cookie.trim();
-        return nextAuthCookiePatterns.some(pattern => 
+        return nextAuthCookiePatterns.some(pattern =>
           trimmedCookie.startsWith(`${pattern}=`) && trimmedCookie.length > pattern.length + 1
         );
       });
@@ -165,7 +167,7 @@ export function useNextAuthCookieCheck() {
     };
 
     checkCookies();
-    
+
     // Check cookies periodically
     const interval = setInterval(checkCookies, 5000);
     return () => clearInterval(interval);
