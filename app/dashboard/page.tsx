@@ -7,6 +7,8 @@ import { signOut } from "next-auth/react";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useAdminDashboard, useAdminOrders } from "@/hooks/useAdminDashboard";
 import { AdminOrder, OrderStatus } from "@/types/admin";
+import ProductManagementTable from "@/components/admin/ProductManagementTable";
+import OrderManagementTable from "@/components/admin/OrderManagementTable";
 
 export default function DashboardPage() {
   const { isAuthenticated, user, isReady } = useUnifiedAuth();
@@ -385,133 +387,9 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {activeTab === "orders" && (
-              <div className="rounded-lg bg-white p-6 shadow">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">Daftar Pesanan</h3>
-                  <Link
-                    href="/dashboard/orders/new"
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Tambah Pesanan
-                  </Link>
-                </div>
-                <div className="mt-4">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead>
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          ID Pesanan
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Pelanggan
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Total
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Aksi
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {[1, 2, 3].map((order) => (
-                        <tr key={order}>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                            #{order}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            Pelanggan {order}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                              Selesai
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                            Rp {formatNumber(1000000 + order * 100000)}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            <Link
-                              href={`/dashboard/orders/${order}`}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              Detail
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            {activeTab === "orders" && <OrderManagementTable />}
 
-            {activeTab === "products" && (
-              <div className="rounded-lg bg-white p-6 shadow">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">Daftar Produk</h3>
-                  <Link
-                    href="/dashboard/products/new"
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Tambah Produk
-                  </Link>
-                </div>
-                <div className="mt-4">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead>
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Nama Produk
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Kategori
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Stok
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Harga
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Aksi
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {[1, 2, 3].map((product) => (
-                        <tr key={product}>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                            Produk {product}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            Kategori {product}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                            {formatNumber(100 + product)}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                            Rp {formatNumber(100000 + product * 10000)}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            <Link
-                              href={`/dashboard/products/${product}`}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              Edit
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            {activeTab === "products" && <ProductManagementTable />}
 
             {activeTab === "customers" && (
               <div className="rounded-lg bg-white p-6 shadow">

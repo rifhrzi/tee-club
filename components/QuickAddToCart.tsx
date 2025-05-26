@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import useCartStore from '@/store/cartStore';
-import { redirectToSignup } from '@/utils/authRedirect';
-import LoadingButton from './LoadingButton';
+import React from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import useCartStore from "@/store/cartStore";
+import { redirectToSignup } from "@/utils/authRedirect";
+import LoadingButton from "./LoadingButton";
 
 interface Product {
   id: string;
@@ -24,35 +24,35 @@ export default function QuickAddToCart({ product }: QuickAddToCartProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const addToCart = useCartStore((state) => state.addToCart);
-  const isAuthenticated = status === 'authenticated';
+  const isAuthenticated = status === "authenticated";
 
   const handleQuickAdd = () => {
-    console.log('QuickAddToCart: Button clicked');
-    console.log('QuickAddToCart: Authentication state:', {
+    console.log("QuickAddToCart: Button clicked");
+    console.log("QuickAddToCart: Authentication state:", {
       status,
       isAuthenticated,
       sessionExists: !!session,
-      userEmail: session?.user?.email || 'none'
+      userEmail: session?.user?.email || "none",
     });
 
     // Don't proceed if session is still loading
-    if (status === 'loading') {
-      console.log('QuickAddToCart: Session still loading, please wait...');
+    if (status === "loading") {
+      console.log("QuickAddToCart: Session still loading, please wait...");
       return;
     }
 
     // Debug cookies
-    if (typeof window !== 'undefined') {
-      console.log('QuickAddToCart: Current cookies:', document.cookie);
+    if (typeof window !== "undefined") {
+      console.log("QuickAddToCart: Current cookies:", document.cookie);
     }
 
     if (!isAuthenticated) {
-      console.log('QuickAddToCart: User not authenticated, redirecting to signup');
+      console.log("QuickAddToCart: User not authenticated, redirecting to signup");
       redirectToSignup(window.location.pathname);
       return;
     }
 
-    console.log('QuickAddToCart: User is authenticated, adding to cart');
+    console.log("QuickAddToCart: User is authenticated, adding to cart");
 
     try {
       const cartProduct = {
@@ -67,27 +67,27 @@ export default function QuickAddToCart({ product }: QuickAddToCartProps) {
       // Add to cart with skipAuthCheck since we already verified authentication
       addToCart(cartProduct, {
         currentPath: window.location.pathname,
-        skipAuthCheck: true
+        skipAuthCheck: true,
       });
 
-      console.log('QuickAddToCart: Product added successfully');
+      console.log("QuickAddToCart: Product added successfully");
     } catch (error) {
-      console.error('QuickAddToCart: Error adding to cart:', error);
+      console.error("QuickAddToCart: Error adding to cart:", error);
     }
   };
 
   const handleBuyNow = () => {
-    console.log('QuickAddToCart: Buy Now clicked');
+    console.log("QuickAddToCart: Buy Now clicked");
 
     // Don't proceed if session is still loading
-    if (status === 'loading') {
-      console.log('QuickAddToCart: Session still loading for Buy Now, please wait...');
+    if (status === "loading") {
+      console.log("QuickAddToCart: Session still loading for Buy Now, please wait...");
       return;
     }
 
     if (!isAuthenticated) {
-      console.log('QuickAddToCart: User not authenticated for Buy Now, redirecting');
-      redirectToSignup('/cart');
+      console.log("QuickAddToCart: User not authenticated for Buy Now, redirecting");
+      redirectToSignup("/cart");
       return;
     }
 
@@ -103,36 +103,40 @@ export default function QuickAddToCart({ product }: QuickAddToCartProps) {
 
       // Add to cart with skipAuthCheck since we already verified authentication
       addToCart(cartProduct, {
-        currentPath: '/cart',
-        skipAuthCheck: true
+        currentPath: "/cart",
+        skipAuthCheck: true,
       });
 
       // Navigate to cart
-      router.push('/cart');
+      router.push("/cart");
     } catch (error) {
-      console.error('QuickAddToCart: Error with Buy Now:', error);
+      console.error("QuickAddToCart: Error with Buy Now:", error);
     }
   };
 
   return (
-    <div className="flex space-x-2 mt-2">
+    <div className="flex space-x-2">
       <LoadingButton
         onClick={handleQuickAdd}
         isLoading={false}
-        disabled={status === 'loading'}
-        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-sm"
+        disabled={status === "loading" || product.stock === 0}
+        className="flex-1 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
         loadingText="Adding..."
       >
-        {status === 'loading' ? 'Checking...' : 'Add to Cart'}
+        {status === "loading"
+          ? "Checking..."
+          : product.stock === 0
+            ? "Out of Stock"
+            : "Add to Cart"}
       </LoadingButton>
       <LoadingButton
         onClick={handleBuyNow}
         isLoading={false}
-        disabled={status === 'loading'}
-        className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-sm"
+        disabled={status === "loading" || product.stock === 0}
+        className="flex-1 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
         loadingText="Processing..."
       >
-        {status === 'loading' ? 'Checking...' : 'Buy Now'}
+        {status === "loading" ? "Checking..." : product.stock === 0 ? "Unavailable" : "Buy Now"}
       </LoadingButton>
     </div>
   );

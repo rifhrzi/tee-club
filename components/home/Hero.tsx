@@ -7,7 +7,7 @@ export const Hero = () => {
   return (
     <section className="relative flex min-h-screen items-center justify-center overflow-hidden">
       {/* Background Image */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 h-full w-full">
         <Image
           src="https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080"
           alt="Premium T-Shirt Collection"

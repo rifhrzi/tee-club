@@ -106,8 +106,8 @@ export interface AdminPaymentDetails {
   updatedAt: Date;
 }
 
-export type OrderStatus = 'PENDING' | 'PAID' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-export type PaymentMethod = 'bank_transfer' | 'ewallet' | 'cod';
+export type OrderStatus = "PENDING" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+export type PaymentMethod = "bank_transfer" | "ewallet" | "cod";
 
 // API Response Types
 export interface AdminDashboardResponse {
@@ -159,13 +159,13 @@ export interface AdminUsersResponse {
   };
 }
 
-// Form Types
+// Product form types
 export interface CreateProductForm {
   name: string;
   description: string;
   price: number;
   stock: number;
-  images: string[];
+  images?: string[];
   variants?: {
     name: string;
     price: number;
@@ -185,25 +185,25 @@ export interface UpdateOrderStatusForm {
 
 // Real-time Event Types
 export interface RealTimeEvent {
-  type: 'ORDER_CREATED' | 'ORDER_UPDATED' | 'PRODUCT_UPDATED' | 'STOCK_UPDATED';
+  type: "ORDER_CREATED" | "ORDER_UPDATED" | "PRODUCT_UPDATED" | "STOCK_UPDATED";
   data: any;
   timestamp: Date;
 }
 
 export interface StockUpdateEvent {
-  type: 'STOCK_UPDATED';
+  type: "STOCK_UPDATED";
   data: {
     productId: string;
     variantId?: string;
     oldStock: number;
     newStock: number;
-    reason: 'SALE' | 'RESTOCK' | 'ADJUSTMENT';
+    reason: "SALE" | "RESTOCK" | "ADJUSTMENT";
   };
   timestamp: Date;
 }
 
 export interface OrderEvent {
-  type: 'ORDER_CREATED' | 'ORDER_UPDATED';
+  type: "ORDER_CREATED" | "ORDER_UPDATED";
   data: {
     orderId: string;
     userId: string;
@@ -219,8 +219,8 @@ export interface AdminFilters {
   dateFrom?: Date;
   dateTo?: Date;
   search?: string;
-  sortBy?: 'createdAt' | 'totalAmount' | 'status';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "createdAt" | "totalAmount" | "status";
+  sortOrder?: "asc" | "desc";
   page?: number;
   limit?: number;
 }
@@ -228,8 +228,8 @@ export interface AdminFilters {
 export interface ProductFilters {
   search?: string;
   lowStock?: boolean;
-  sortBy?: 'name' | 'price' | 'stock' | 'createdAt';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "name" | "price" | "stock" | "createdAt";
+  sortOrder?: "asc" | "desc";
   page?: number;
   limit?: number;
 }
@@ -237,8 +237,8 @@ export interface ProductFilters {
 export interface UserFilters {
   role?: string[];
   search?: string;
-  sortBy?: 'name' | 'email' | 'createdAt';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "name" | "email" | "createdAt";
+  sortOrder?: "asc" | "desc";
   page?: number;
   limit?: number;
 }
