@@ -92,8 +92,16 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    console.log("Admin Product API - Update request body:", JSON.stringify(body, null, 2));
+
     const updateData = { ...body };
     delete updateData.id; // Remove id from update data
+    delete updateData.createdAt; // Remove createdAt from update data
+    delete updateData.updatedAt; // Remove updatedAt from update data
+    delete updateData._count; // Remove _count from update data
+    delete updateData.variants; // Remove variants from update data (handle separately if needed)
+
+    console.log("Admin Product API - Cleaned update data:", JSON.stringify(updateData, null, 2));
 
     // Validate numeric fields if provided
     if (updateData.price !== undefined && updateData.price < 0) {
@@ -123,6 +131,8 @@ export async function PATCH(
     }
 
     // Update product
+    console.log("Admin Product API - Attempting to update product with data:", updateData);
+
     const updatedProduct = await db.product.update({
       where: {
         id: params.id,
@@ -141,7 +151,7 @@ export async function PATCH(
       },
     });
 
-    console.log(`Admin Product API - Updated product ${params.id}`);
+    console.log(`Admin Product API - Updated product ${params.id} successfully`);
 
     return NextResponse.json({
       success: true,
@@ -150,8 +160,18 @@ export async function PATCH(
     });
   } catch (error) {
     console.error("Admin Product API - Update error:", error);
+    console.error("Admin Product API - Error details:", {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      name: error instanceof Error ? error.name : 'Unknown error type'
+    });
+
     return NextResponse.json(
-      { error: "Failed to update product" },
+      {
+        error: "Failed to update product",
+        details: error instanceof Error ? error.message : 'Unknown error occurred',
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }
@@ -205,7 +225,7 @@ export async function DELETE(
     // Check if product has associated orders
     if (existingProduct._count.orderItems > 0) {
       return NextResponse.json(
-        { 
+        {
           error: "Cannot delete product with existing orders",
           message: "This product has been ordered and cannot be deleted. Consider marking it as out of stock instead."
         },

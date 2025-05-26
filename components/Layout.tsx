@@ -21,8 +21,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </div>
             </main>
             <Footer />
-            {/* Only render AuthStatus on client side to prevent hydration mismatch */}
-            {isClient && <AuthStatus />}
+            {/* Only render AuthStatus on client side to prevent hydration mismatch
+            {isClient && <AuthStatus />} */}
         </div>
     );
 };
