@@ -60,8 +60,11 @@ export default function ShopClient({ products }: { products: Product[] }) {
       const matchesPrice =
         product.price >= filters.priceRange[0] && product.price <= filters.priceRange[1];
 
-      // Stock filter
-      const matchesStock = !filters.inStock || product.stock > 0;
+      // Stock filter - calculate total stock from variants if they exist
+      const totalStock = product.variants.length > 0
+        ? product.variants.reduce((total, variant) => total + variant.stock, 0)
+        : product.stock;
+      const matchesStock = !filters.inStock || totalStock > 0;
 
       return matchesSearch && matchesPrice && matchesStock;
     });

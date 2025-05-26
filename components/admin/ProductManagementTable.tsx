@@ -383,7 +383,11 @@ export default function ProductManagementTable({ className = "" }: ProductManage
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
                 {productsData.products.map((product) => {
-                  const stockStatus = getStockStatus(product.stock);
+                  // Calculate total stock from variants if they exist
+                  const totalStock = product.variants?.length > 0
+                    ? product.variants.reduce((total, variant) => total + variant.stock, 0)
+                    : product.stock;
+                  const stockStatus = getStockStatus(totalStock);
                   return (
                     <tr key={product.id} className="transition-colors hover:bg-gray-50">
                       <td className="px-6 py-4">
@@ -412,7 +416,7 @@ export default function ProductManagementTable({ className = "" }: ProductManage
                       </td>
                       <td className="whitespace-nowrap px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900">{product.stock}</span>
+                          <span className="text-sm font-medium text-gray-900">{totalStock}</span>
                           <span
                             className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${stockStatus.className}`}
                           >

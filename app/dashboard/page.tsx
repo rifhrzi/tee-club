@@ -351,11 +351,18 @@ export default function DashboardPage() {
                         >
                           <div>
                             <p className="text-sm font-medium text-gray-900">{product.name}</p>
-                            <p className="text-sm text-red-500">
-                              Stok: {product.stock} unit
-                              {product.stock === 0 && " (Habis)"}
-                              {product.stock > 0 && product.stock < 5 && " (Sangat Rendah)"}
-                            </p>
+                            {(() => {
+                              const totalStock = product.variants?.length > 0
+                                ? product.variants.reduce((total, variant) => total + variant.stock, 0)
+                                : product.stock;
+                              return (
+                                <p className="text-sm text-red-500">
+                                  Stok: {totalStock} unit
+                                  {totalStock === 0 && " (Habis)"}
+                                  {totalStock > 0 && totalStock < 5 && " (Sangat Rendah)"}
+                                </p>
+                              );
+                            })()}
                           </div>
                           <div className="text-right">
                             <span className="text-sm font-medium text-gray-900">

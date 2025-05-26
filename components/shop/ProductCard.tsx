@@ -30,6 +30,11 @@ export default function ProductCard({ product, viewMode, index }: ProductCardPro
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
+  // Calculate total stock correctly based on variants
+  const totalStock = product.variants.length > 0
+    ? product.variants.reduce((total, variant) => total + variant.stock, 0)
+    : product.stock;
+
   const handleWishlistToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -77,7 +82,7 @@ export default function ProductCard({ product, viewMode, index }: ProductCardPro
             </Link>
 
             {/* Stock overlay */}
-            {product.stock === 0 && (
+            {totalStock === 0 && (
               <div className="absolute inset-0 flex items-center justify-center rounded-l-xl bg-black/60">
                 <span className="text-sm font-semibold text-white">Out of Stock</span>
               </div>
@@ -108,7 +113,7 @@ export default function ProductCard({ product, viewMode, index }: ProductCardPro
                 <p className="mt-1 line-clamp-2 text-sm text-gray-600">{product.description}</p>
               </div>
 
-              <StockBadge stock={product.stock} className="ml-4" />
+              <StockBadge stock={totalStock} className="ml-4" />
             </div>
 
             <div className="mb-4 flex items-center justify-between">
@@ -175,7 +180,7 @@ export default function ProductCard({ product, viewMode, index }: ProductCardPro
         </Link>
 
         {/* Stock overlay */}
-        {product.stock === 0 && (
+        {totalStock === 0 && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
             <span className="font-semibold text-white">Out of Stock</span>
           </div>
@@ -195,7 +200,7 @@ export default function ProductCard({ product, viewMode, index }: ProductCardPro
 
         {/* Stock status badge */}
         <div className="absolute left-3 top-3">
-          <StockBadge stock={product.stock} />
+          <StockBadge stock={totalStock} />
         </div>
       </div>
 

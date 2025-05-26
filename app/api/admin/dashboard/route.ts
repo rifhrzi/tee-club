@@ -192,14 +192,8 @@ export async function GET(request: NextRequest) {
         },
       }),
 
-      // Low stock products (stock < 10)
+      // Low stock products - get all products and filter by total stock
       db.product.findMany({
-        where: {
-          stock: {
-            lt: 10,
-          },
-        },
-        take: 5,
         include: {
           variants: true,
           _count: {
@@ -207,9 +201,6 @@ export async function GET(request: NextRequest) {
               orderItems: true,
             },
           },
-        },
-        orderBy: {
-          stock: "asc",
         },
       }),
 
@@ -257,12 +248,31 @@ export async function GET(request: NextRequest) {
 
     console.log("Admin Dashboard API - Stats calculated:", stats);
 
+    // Filter and sort low stock products based on total stock (including variants)
+    const filteredLowStockProducts = lowStockProducts
+      .map(product => {
+        // Calculate total stock from variants if they exist, otherwise use main stock
+        const totalStock = product.variants.length > 0
+          ? product.variants.reduce((total, variant) => total + variant.stock, 0)
+          : product.stock;
+
+        return {
+          ...product,
+          totalStock, // Add calculated total stock for sorting
+        };
+      })
+      .filter(product => product.totalStock < 10) // Filter by total stock < 10
+      .sort((a, b) => a.totalStock - b.totalStock) // Sort by total stock ascending
+      .slice(0, 5); // Take only first 5
+
+    console.log("Admin Dashboard API - Low stock products filtered:", filteredLowStockProducts.length);
+
     const response: AdminDashboardResponse = {
       success: true,
       data: {
         stats,
         recentOrders,
-        lowStockProducts,
+        lowStockProducts: filteredLowStockProducts,
         recentCustomers,
       },
     };
