@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { reduceProductStock } from "@/lib/services/products";
+import { processOrderPayment } from "@/lib/services/orderProcessing";
 
 export async function POST(request: Request) {
   try {
@@ -21,8 +21,8 @@ export async function POST(request: Request) {
     const order = await db.order.findUnique({
       where: { id: orderId },
       include: {
-        items: true
-      }
+        items: true,
+      },
     });
 
     if (!order) {
@@ -30,8 +30,15 @@ export async function POST(request: Request) {
     }
 
     // Update order status based on transaction status
-    let newStatus: "PENDING" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" =
-      order.status;
+    let newStatus:
+      | "PENDING"
+      | "PAID"
+      | "PROCESSING"
+      | "SHIPPED"
+      | "DELIVERED"
+      | "CANCELLED"
+      | "REFUND_REQUESTED"
+      | "REFUNDED" = order.status;
 
     if (transactionStatus === "settlement" || transactionStatus === "capture") {
       newStatus = "PAID";
@@ -45,11 +52,10 @@ export async function POST(request: Request) {
       newStatus = "CANCELLED";
     }
 
-    // Update the order in the database
+    // Update payment details first
     await db.order.update({
       where: { id: orderId },
       data: {
-        status: newStatus,
         paymentDetails: {
           upsert: {
             create: {
@@ -68,28 +74,38 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log(`Updated order ${orderId} status to ${newStatus}`);
-
-    // If payment is successful, reduce stock for each item
+    // If payment is successful, process order payment with enhanced inventory management
     if (newStatus === "PAID") {
-      console.log(`Order ${orderId} is paid, reducing stock for ${order.items.length} items`);
+      console.log(`Order ${orderId} is paid, processing with enhanced inventory management`);
 
       try {
-        // Process each order item
-        for (const item of order.items) {
-          await reduceProductStock(
-            item.productId,
-            item.quantity,
-            item.variantId || undefined
-          );
+        const result = await processOrderPayment(orderId);
+
+        if (result.success) {
+          console.log(`Successfully processed payment and updated stock for order ${orderId}`);
+        } else {
+          console.error(`Failed to process order payment ${orderId}:`, result.message);
+          // Log the error but don't fail the webhook response
+          // The payment was successful, but stock management failed
+          // This should be handled by admin intervention
         }
-        console.log(`Successfully reduced stock for all items in order ${orderId}`);
       } catch (stockError) {
-        console.error(`Error reducing stock for order ${orderId}:`, stockError);
-        // We don't want to fail the whole request if stock reduction fails
+        console.error(`Error processing order payment ${orderId}:`, stockError);
+        // We don't want to fail the whole request if stock processing fails
         // Just log the error and continue
       }
+    } else {
+      // For non-payment statuses, just update the order status
+      await db.order.update({
+        where: { id: orderId },
+        data: {
+          status: newStatus,
+          updatedAt: new Date(),
+        },
+      });
     }
+
+    console.log(`Updated order ${orderId} status to ${newStatus}`);
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -1,5 +1,5 @@
 import React from "react";
-import { SITE_CONFIG } from "../../constants";
+import { SITE_CONFIG, FEATURED_IMAGES } from "../../constants";
 import Link from "next/link";
 import Image from "next/image";
 

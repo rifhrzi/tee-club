@@ -38,13 +38,7 @@ export interface Product {
   readonly variantId?: string;
 }
 
-export interface ProductsConfig {
-  readonly newArrivals: ReadonlyArray<Product>;
-  readonly featured: {
-    readonly main: string;
-    readonly grid: ReadonlyArray<string>;
-  };
-}
+// ProductsConfig interface removed - products now come from database
 
 // Constants with proper type annotations
 export const SITE_CONFIG: SiteConfig = {
@@ -88,57 +82,14 @@ export const formatPrice = (price: number): string => {
   }).format(price);
 };
 
-export const PRODUCTS: ProductsConfig = {
-  newArrivals: [
-    {
-      id: 1,
-      name: "Classic White Tee",
-      price: 299000,
-      image:
-        "https://images.pexels.com/photos/1566412/pexels-photo-1566412.jpeg?auto=compress&cs=tinysrgb&w=800",
-      images: [
-        "https://images.pexels.com/photos/1566412/pexels-photo-1566412.jpeg?auto=compress&cs=tinysrgb&w=800",
-      ],
-      description:
-        "Premium quality white t-shirt made from 100% organic cotton. Perfect for everyday wear with a comfortable, relaxed fit.",
-      stock: 50,
-      sizes: ["S", "M", "L", "XL"],
-    },
-    {
-      id: 2,
-      name: "Urban Black Tee",
-      price: 349000,
-      image:
-        "https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&w=800",
-      images: [
-        "https://images.pexels.com/photos/1124468/pexels-photo-1124468.jpeg?auto=compress&cs=tinysrgb&w=800",
-      ],
-      description:
-        "Sleek black t-shirt with modern minimalist design. Made from premium cotton blend for superior comfort and durability.",
-      stock: 35,
-      sizes: ["M", "L", "XL", "XXL"],
-    },
-    {
-      id: 3,
-      name: "Vintage Print Tee",
-      price: 399000,
-      image:
-        "https://images.pexels.com/photos/1018911/pexels-photo-1018911.jpeg?auto=compress&cs=tinysrgb&w=800",
-      images: [
-        "https://images.pexels.com/photos/1018911/pexels-photo-1018911.jpeg?auto=compress&cs=tinysrgb&w=800",
-      ],
-      description:
-        "Stylish vintage-inspired print tee with modern fit. Features unique graphic design and soft, breathable fabric.",
-      stock: 25,
-      sizes: ["S", "M", "L"],
-    },
+// Static product data removed - all product data now comes from the database
+// Use the /api/products endpoint to fetch real-time product data
+
+export const FEATURED_IMAGES = {
+  main: "https://images.pexels.com/photos/1656684/pexels-photo-1656684.jpeg?auto=compress&cs=tinysrgb&w=800",
+  grid: [
+    "https://images.pexels.com/photos/1484807/pexels-photo-1484807.jpeg?auto=compress&cs=tinysrgb&w=800",
+    "https://images.pexels.com/photos/1183266/pexels-photo-1183266.jpeg?auto=compress&cs=tinysrgb&w=800",
+    "https://images.pexels.com/photos/1926769/pexels-photo-1926769.jpeg?auto=compress&cs=tinysrgb&w=800",
   ],
-  featured: {
-    main: "https://images.pexels.com/photos/1656684/pexels-photo-1656684.jpeg?auto=compress&cs=tinysrgb&w=800",
-    grid: [
-      "https://images.pexels.com/photos/1484807/pexels-photo-1484807.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.pexels.com/photos/1183266/pexels-photo-1183266.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.pexels.com/photos/1926769/pexels-photo-1926769.jpeg?auto=compress&cs=tinysrgb&w=800",
-    ],
-  },
 };

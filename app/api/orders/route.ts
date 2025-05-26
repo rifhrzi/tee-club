@@ -1,55 +1,47 @@
 export const dynamic = "force-dynamic";
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     console.log("API: /api/orders - Request received");
 
-    // Log all headers for debugging
-    console.log("API: /api/orders - Request headers:");
-    const headers: Record<string, string> = {};
-    request.headers.forEach((value, key) => {
-      headers[key] = value;
-      console.log(`  ${key}: ${value}`);
-    });
+    const session = await getServerSession(authOptions);
 
-    // Get user ID from NextAuth middleware-set header
-    const nextAuthUserId = request.headers.get("x-nextauth-user-id");
-
-    console.log("API: /api/orders - Authentication info:", {
-      "x-nextauth-user-id": nextAuthUserId
-    });
-
-    if (!nextAuthUserId) {
-      console.log("API: /api/orders - No NextAuth user ID, returning 401");
-      return NextResponse.json({
-        error: "Unauthorized",
-        message: "No valid authentication found. Please log in."
-      }, { status: 401 });
+    if (!session?.user?.id) {
+      console.log("API: /api/orders - No session, returning 401");
+      return NextResponse.json(
+        {
+          error: "Authentication required",
+          message: "Please log in to view your orders.",
+        },
+        { status: 401 }
+      );
     }
 
-    // Verify user exists
-    const user = await db.user.findUnique({
-      where: { id: nextAuthUserId },
-    });
+    console.log("API: /api/orders - User authenticated:", session.user.email);
 
-    if (!user) {
-      console.log("API: /api/orders - User not found for ID:", nextAuthUserId);
-      return NextResponse.json({
-        error: "User not found",
-        message: "The user associated with this authentication could not be found."
-      }, { status: 404 });
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "10");
+    const status = url.searchParams.get("status");
+
+    // Build where clause
+    const where: any = {
+      userId: session.user.id,
+    };
+
+    if (status) {
+      where.status = status;
     }
 
-    console.log("API: /api/orders - User found:", user.email);
-
-    // Fetch orders
-    console.log("API: /api/orders - Fetching orders for user ID:", nextAuthUserId);
+    // Get orders with pagination
+    console.log("API: /api/orders - Fetching orders for user ID:", session.user.id);
     const orders = await db.order.findMany({
-      where: { userId: nextAuthUserId },
-      orderBy: { createdAt: "desc" },
+      where,
       include: {
         items: {
           include: {
@@ -60,19 +52,47 @@ export async function GET(request: Request) {
                 images: true,
               },
             },
+            variant: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         shippingDetails: true,
+        paymentDetails: true,
       },
+      orderBy: {
+        createdAt: "desc",
+      },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    console.log(`API: /api/orders - Found ${orders.length} orders`);
-    return NextResponse.json({ orders });
+    // Get total count for pagination
+    const total = await db.order.count({ where });
+
+    console.log(`API: /api/orders - Found ${orders.length} orders (total: ${total})`);
+
+    return NextResponse.json({
+      success: true,
+      orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error("API: /api/orders - Unexpected error:", error);
-    return NextResponse.json({
-      error: "Failed to fetch orders",
-      message: error instanceof Error ? error.message : "Unknown error occurred"
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Failed to fetch orders",
+        message: error instanceof Error ? error.message : "Unknown error occurred",
+      },
+      { status: 500 }
+    );
   }
 }

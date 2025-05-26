@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { formatPrice } from "@/constants";
 import { TruckIcon, ShieldCheckIcon, ArrowPathIcon, HeartIcon } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
+import StockStatus, { StockAlert } from "@/components/product/StockStatus";
 
 interface Variant {
   id: string;
@@ -38,22 +39,6 @@ export default function ProductInfo({
 
   const currentPrice = selectedVariant ? selectedVariant.price : product.price;
   const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
-
-  const getStockStatus = () => {
-    if (currentStock === 0) {
-      return { text: "Out of Stock", className: "text-red-600", bgClassName: "bg-red-100" };
-    } else if (currentStock < 5) {
-      return {
-        text: `Only ${currentStock} left`,
-        className: "text-yellow-600",
-        bgClassName: "bg-yellow-100",
-      };
-    } else {
-      return { text: "In Stock", className: "text-green-600", bgClassName: "bg-green-100" };
-    }
-  };
-
-  const stockStatus = getStockStatus();
 
   const handleWishlistToggle = () => {
     setIsWishlisted(!isWishlisted);
@@ -98,15 +83,14 @@ export default function ProductInfo({
           </div>
 
           {/* Stock Status */}
-          <div className="mt-2">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stockStatus.bgClassName} ${stockStatus.className}`}
-            >
-              {stockStatus.text}
-            </span>
+          <div className="mt-3">
+            <StockStatus stock={currentStock} size="md" />
           </div>
         </div>
       </motion.div>
+
+      {/* Stock Alert */}
+      <StockAlert stock={currentStock} threshold={5} />
 
       {/* Product Description */}
       <motion.div

@@ -1,15 +1,16 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import LoadingButton from '@/components/LoadingButton';
-import { 
-  MinusIcon, 
-  PlusIcon, 
-  ShoppingCartIcon, 
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import LoadingButton from "@/components/LoadingButton";
+import { QuantitySelector } from "@/components/product/StockStatus";
+import {
+  ShoppingCartIcon,
   BoltIcon,
-  ShareIcon 
-} from '@heroicons/react/24/outline';
+  ShareIcon,
+  MinusIcon,
+  PlusIcon,
+} from "@heroicons/react/24/outline";
 
 interface Variant {
   id: string;
@@ -47,10 +48,10 @@ export default function PurchaseControls({
   onAddToCart,
   onBuyNow,
   isLoading,
-  isAuthenticated
+  isAuthenticated,
 }: PurchaseControlsProps) {
   const [showShareMenu, setShowShareMenu] = useState(false);
-  
+
   const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
   const maxQuantity = Math.min(currentStock, 10); // Limit to 10 items max
   const isOutOfStock = currentStock === 0;
@@ -71,38 +72,51 @@ export default function PurchaseControls({
     setShowShareMenu(!showShareMenu);
   };
 
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
   const shareOptions = [
     {
-      name: 'Copy Link',
+      name: "Copy Link",
       action: () => {
         navigator.clipboard.writeText(shareUrl);
         setShowShareMenu(false);
         // You could add a toast notification here
-      }
+      },
     },
     {
-      name: 'Facebook',
+      name: "Facebook",
       action: () => {
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
+        window.open(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+          "_blank"
+        );
         setShowShareMenu(false);
-      }
+      },
     },
     {
-      name: 'Twitter',
+      name: "Twitter",
       action: () => {
-        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(product.name)}`, '_blank');
+        window.open(
+          `https://twitter.com/intent/tweet?url=${encodeURIComponent(
+            shareUrl
+          )}&text=${encodeURIComponent(product.name)}`,
+          "_blank"
+        );
         setShowShareMenu(false);
-      }
+      },
     },
     {
-      name: 'WhatsApp',
+      name: "WhatsApp",
       action: () => {
-        window.open(`https://wa.me/?text=${encodeURIComponent(`Check out this product: ${product.name} ${shareUrl}`)}`, '_blank');
+        window.open(
+          `https://wa.me/?text=${encodeURIComponent(
+            `Check out this product: ${product.name} ${shareUrl}`
+          )}`,
+          "_blank"
+        );
         setShowShareMenu(false);
-      }
-    }
+      },
+    },
   ];
 
   return (
@@ -114,35 +128,33 @@ export default function PurchaseControls({
     >
       {/* Quantity Selector */}
       <div>
-        <label className="block text-sm font-medium text-gray-900 mb-3">
-          Quantity
-        </label>
+        <label className="mb-3 block text-sm font-medium text-gray-900">Quantity</label>
         <div className="flex items-center space-x-4">
-          <div className="flex items-center border border-gray-300 rounded-lg">
+          <div className="flex items-center rounded-lg border border-gray-300">
             <button
               onClick={handleQuantityDecrease}
               disabled={quantity <= 1 || isOutOfStock}
-              className="p-3 text-gray-600 hover:text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded-l-lg"
+              className="rounded-l-lg p-3 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <MinusIcon className="w-4 h-4" />
+              <MinusIcon className="h-4 w-4" />
             </button>
-            
-            <div className="px-4 py-3 text-center min-w-[60px] border-x border-gray-300">
+
+            <div className="min-w-[60px] border-x border-gray-300 px-4 py-3 text-center">
               <span className="text-lg font-medium">{quantity}</span>
             </div>
-            
+
             <button
               onClick={handleQuantityIncrease}
               disabled={quantity >= maxQuantity || isOutOfStock}
-              className="p-3 text-gray-600 hover:text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded-r-lg"
+              className="rounded-r-lg p-3 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <PlusIcon className="w-4 h-4" />
+              <PlusIcon className="h-4 w-4" />
             </button>
           </div>
-          
+
           <div className="text-sm text-gray-500">
             {isOutOfStock ? (
-              <span className="text-red-600 font-medium">Out of stock</span>
+              <span className="font-medium text-red-600">Out of stock</span>
             ) : (
               <span>{currentStock} available</span>
             )}
@@ -157,17 +169,16 @@ export default function PurchaseControls({
           onClick={onAddToCart}
           isLoading={isLoading}
           disabled={isOutOfStock || !isAuthenticated}
-          className="w-full bg-primary-600 hover:bg-primary-700 text-white py-4 px-6 rounded-lg font-semibold text-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+          className="flex w-full items-center justify-center space-x-2 rounded-lg bg-primary-600 px-6 py-4 text-lg font-semibold text-white transition-all duration-200 hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
           loadingText="Adding to Cart..."
         >
-          <ShoppingCartIcon className="w-5 h-5" />
+          <ShoppingCartIcon className="h-5 w-5" />
           <span>
-            {isOutOfStock 
-              ? 'Out of Stock' 
-              : !isAuthenticated 
-              ? 'Sign In to Add to Cart'
-              : 'Add to Cart'
-            }
+            {isOutOfStock
+              ? "Out of Stock"
+              : !isAuthenticated
+                ? "Sign In to Add to Cart"
+                : "Add to Cart"}
           </span>
         </LoadingButton>
 
@@ -176,17 +187,12 @@ export default function PurchaseControls({
           onClick={onBuyNow}
           isLoading={isLoading}
           disabled={isOutOfStock || !isAuthenticated}
-          className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 px-6 rounded-lg font-semibold text-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+          className="flex w-full items-center justify-center space-x-2 rounded-lg bg-gray-900 px-6 py-4 text-lg font-semibold text-white transition-all duration-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
           loadingText="Processing..."
         >
-          <BoltIcon className="w-5 h-5" />
+          <BoltIcon className="h-5 w-5" />
           <span>
-            {isOutOfStock 
-              ? 'Unavailable' 
-              : !isAuthenticated 
-              ? 'Sign In to Buy Now'
-              : 'Buy Now'
-            }
+            {isOutOfStock ? "Unavailable" : !isAuthenticated ? "Sign In to Buy Now" : "Buy Now"}
           </span>
         </LoadingButton>
       </div>
@@ -195,9 +201,9 @@ export default function PurchaseControls({
       <div className="relative">
         <button
           onClick={handleShare}
-          className="w-full border border-gray-300 text-gray-700 py-3 px-6 rounded-lg font-medium transition-all duration-200 hover:bg-gray-50 hover:border-gray-400 flex items-center justify-center space-x-2"
+          className="flex w-full items-center justify-center space-x-2 rounded-lg border border-gray-300 px-6 py-3 font-medium text-gray-700 transition-all duration-200 hover:border-gray-400 hover:bg-gray-50"
         >
-          <ShareIcon className="w-5 h-5" />
+          <ShareIcon className="h-5 w-5" />
           <span>Share Product</span>
         </button>
 
@@ -207,16 +213,16 @@ export default function PurchaseControls({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10"
+            className="absolute bottom-full left-0 right-0 z-10 mb-2 rounded-lg border border-gray-200 bg-white shadow-lg"
           >
             {shareOptions.map((option, index) => (
               <button
                 key={option.name}
                 onClick={option.action}
-                className={`w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors ${
-                  index === 0 ? 'rounded-t-lg' : ''
+                className={`w-full px-4 py-3 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 ${
+                  index === 0 ? "rounded-t-lg" : ""
                 } ${
-                  index === shareOptions.length - 1 ? 'rounded-b-lg' : 'border-b border-gray-100'
+                  index === shareOptions.length - 1 ? "rounded-b-lg" : "border-b border-gray-100"
                 }`}
               >
                 {option.name}
@@ -227,17 +233,17 @@ export default function PurchaseControls({
       </div>
 
       {/* Security and Trust Indicators */}
-      <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+      <div className="space-y-2 rounded-lg bg-gray-50 p-4">
         <div className="flex items-center space-x-2 text-sm text-gray-600">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <div className="h-2 w-2 rounded-full bg-green-500"></div>
           <span>Secure checkout with SSL encryption</span>
         </div>
         <div className="flex items-center space-x-2 text-sm text-gray-600">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <div className="h-2 w-2 rounded-full bg-green-500"></div>
           <span>Free shipping on orders over $50</span>
         </div>
         <div className="flex items-center space-x-2 text-sm text-gray-600">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <div className="h-2 w-2 rounded-full bg-green-500"></div>
           <span>30-day money-back guarantee</span>
         </div>
       </div>
@@ -247,10 +253,11 @@ export default function PurchaseControls({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="bg-blue-50 border border-blue-200 rounded-lg p-4"
+          className="rounded-lg border border-blue-200 bg-blue-50 p-4"
         >
           <p className="text-sm text-blue-800">
-            <span className="font-medium">Sign in required:</span> Please sign in to add items to your cart or make a purchase.
+            <span className="font-medium">Sign in required:</span> Please sign in to add items to
+            your cart or make a purchase.
           </p>
         </motion.div>
       )}
@@ -260,10 +267,11 @@ export default function PurchaseControls({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="bg-yellow-50 border border-yellow-200 rounded-lg p-4"
+          className="rounded-lg border border-yellow-200 bg-yellow-50 p-4"
         >
           <p className="text-sm text-yellow-800">
-            <span className="font-medium">Limited stock:</span> Only {currentStock} items left in stock!
+            <span className="font-medium">Limited stock:</span> Only {currentStock} items left in
+            stock!
           </p>
         </motion.div>
       )}

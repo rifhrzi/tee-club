@@ -15,6 +15,8 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+  REFUND_REQUESTED
+  REFUNDED
 }
 
 enum PaymentMethod {
@@ -32,8 +34,16 @@ model User {
   name          String
   password      String
   role          String         @default("USER")
+  phone         String?
+  // Default shipping address fields
+  defaultAddressName      String?
+  defaultAddressPhone     String?
+  defaultAddressAddress   String?
+  defaultAddressCity      String?
+  defaultAddressPostalCode String?
   orders        Order[]
   refreshTokens RefreshToken[]
+  stockHistory  StockHistory[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -112,8 +122,12 @@ model Product {
   images      String[]
   variants    Variant[]
   orderItems  OrderItem[]
+  stockHistory StockHistory[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
+  @@index([stock])
+  @@index([createdAt])
 }
 
 model Variant {
@@ -124,6 +138,42 @@ model Variant {
   price      Float
   stock      Int
   orderItems OrderItem[]
+  stockHistory StockHistory[]
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+
+  @@index([productId])
+  @@index([stock])
+  @@index([createdAt])
+}
+
+model StockHistory {
+  id          String      @id @default(uuid())
+  productId   String?
+  product     Product?    @relation(fields: [productId], references: [id])
+  variantId   String?
+  variant     Variant?    @relation(fields: [variantId], references: [id])
+  type        StockChangeType
+  quantity    Int         // Positive for increase, negative for decrease
+  previousStock Int
+  newStock    Int
+  reason      String      // e.g., "Order payment", "Admin adjustment", "Refund"
+  orderId     String?     // Reference to order if stock change is due to order
+  userId      String?     // User who made the change (for admin adjustments)
+  user        User?       @relation(fields: [userId], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@index([productId])
+  @@index([variantId])
+  @@index([orderId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+enum StockChangeType {
+  PURCHASE      // Stock reduced due to purchase
+  REFUND        // Stock increased due to refund
+  ADJUSTMENT    // Manual admin adjustment
+  RESTOCK       // Stock replenishment
+  DAMAGE        // Stock reduced due to damage/loss
 }

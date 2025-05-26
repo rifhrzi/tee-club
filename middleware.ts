@@ -6,6 +6,8 @@ const publicPaths = [
   "/api/auth/[...nextauth]",
   "/api/public",
   "/api/products", // Products should be publicly accessible
+  "/api/profile", // Profile API handles its own authentication with getServerSession
+  "/api/checkout", // Checkout API handles its own authentication with getServerSession
   // Guest order lookup removed - all order operations now require authentication
 ];
 

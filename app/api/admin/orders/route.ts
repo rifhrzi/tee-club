@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { AdminOrdersResponse, AdminFilters } from "@/types/admin";
+import { handleOrderStatusChange } from "@/lib/services/orderProcessing";
 
 export const dynamic = "force-dynamic";
 
@@ -16,17 +17,11 @@ export async function GET(request: NextRequest) {
 
     // Check if user is authenticated and is admin
     if (!userEmail) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     if (userRole !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     // Parse query parameters
@@ -153,10 +148,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response);
   } catch (error) {
     console.error("Admin Orders API - Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch orders" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
   }
 }
 
@@ -170,47 +162,51 @@ export async function PATCH(request: NextRequest) {
 
     // Check if user is authenticated and is admin
     if (!userEmail) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     if (userRole !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Admin access required" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     const body = await request.json();
     const { orderId, status, notes } = body;
 
     if (!orderId || !status) {
-      return NextResponse.json(
-        { error: "Order ID and status are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Order ID and status are required" }, { status: 400 });
     }
 
     // Validate status
-    const validStatuses = ['PENDING', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+    const validStatuses = [
+      "PENDING",
+      "PAID",
+      "PROCESSING",
+      "SHIPPED",
+      "DELIVERED",
+      "CANCELLED",
+      "REFUND_REQUESTED",
+      "REFUNDED",
+    ];
     if (!validStatuses.includes(status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
+    // Use enhanced order processing service for status changes
+    const result = await handleOrderStatusChange(orderId, status);
+
+    if (!result.success) {
       return NextResponse.json(
-        { error: "Invalid status" },
+        {
+          error: "Failed to update order status",
+          message: result.message,
+        },
         { status: 400 }
       );
     }
 
-    // Update order status
-    const updatedOrder = await db.order.update({
-      where: {
-        id: orderId,
-      },
-      data: {
-        status,
-        updatedAt: new Date(),
-      },
+    // Get updated order with all relations for response
+    const updatedOrder = await db.order.findUnique({
+      where: { id: orderId },
       include: {
         user: {
           select: {
@@ -241,13 +237,11 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: updatedOrder,
-      message: `Order status updated to ${status}`,
+      message: result.message,
+      stockChanges: result.stockChanges,
     });
   } catch (error) {
     console.error("Admin Orders API - Update error:", error);
-    return NextResponse.json(
-      { error: "Failed to update order status" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update order status" }, { status: 500 });
   }
 }

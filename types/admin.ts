@@ -106,7 +106,15 @@ export interface AdminPaymentDetails {
   updatedAt: Date;
 }
 
-export type OrderStatus = "PENDING" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+export type OrderStatus =
+  | "PENDING"
+  | "PAID"
+  | "PROCESSING"
+  | "SHIPPED"
+  | "DELIVERED"
+  | "CANCELLED"
+  | "REFUND_REQUESTED"
+  | "REFUNDED";
 export type PaymentMethod = "bank_transfer" | "ewallet" | "cod";
 
 // API Response Types

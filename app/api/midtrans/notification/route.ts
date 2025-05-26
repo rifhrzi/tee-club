@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import midtransClient from "midtrans-client";
 import { db } from "@/lib/db";
-import { reduceProductStock } from "@/lib/services/products";
+import { processOrderPayment } from "@/lib/services/orderProcessing";
 
 export async function POST(request: Request) {
   try {
@@ -48,36 +48,44 @@ export async function POST(request: Request) {
         ],
       },
       include: {
-        items: true
-      }
+        items: true,
+      },
     });
 
     if (order) {
-      // Update order status
-      await db.order.update({
-        where: { id: order.id },
-        data: { status: orderStatus },
-      });
-
-      // If payment is successful, reduce stock for each item
+      // If payment is successful, process order payment with enhanced inventory management
       if (orderStatus === "PAID") {
-        console.log(`Midtrans: Order ${order.id} is paid, reducing stock for ${order.items.length} items`);
+        console.log(
+          `Midtrans: Order ${order.id} is paid, processing with enhanced inventory management`
+        );
 
         try {
-          // Process each order item
-          for (const item of order.items) {
-            await reduceProductStock(
-              item.productId,
-              item.quantity,
-              item.variantId || undefined
+          const result = await processOrderPayment(order.id);
+
+          if (result.success) {
+            console.log(
+              `Midtrans: Successfully processed payment and updated stock for order ${order.id}`
             );
+          } else {
+            console.error(`Midtrans: Failed to process order payment ${order.id}:`, result.message);
+            // Log the error but don't fail the webhook response
+            // The payment was successful, but stock management failed
+            // This should be handled by admin intervention
           }
-          console.log(`Midtrans: Successfully reduced stock for all items in order ${order.id}`);
         } catch (stockError) {
-          console.error(`Midtrans: Error reducing stock for order ${order.id}:`, stockError);
-          // We don't want to fail the whole request if stock reduction fails
+          console.error(`Midtrans: Error processing order payment ${order.id}:`, stockError);
+          // We don't want to fail the whole request if stock processing fails
           // Just log the error and continue
         }
+      } else {
+        // For non-payment statuses, just update the order status
+        await db.order.update({
+          where: { id: order.id },
+          data: {
+            status: orderStatus,
+            updatedAt: new Date(),
+          },
+        });
       }
     } else {
       console.error(`Order not found for notification: ${orderId}`);

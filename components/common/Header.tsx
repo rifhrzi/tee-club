@@ -11,6 +11,9 @@ export const Header = () => {
   const [isClient, setIsClient] = useState(false);
   const { data: session, status } = useSession();
 
+  // Move useRef to top level - this is the correct way to use hooks
+  const prevStatus = React.useRef(status);
+
   // Only consider authenticated if we have a session and we're not in the loading state
   const isAuthenticated = status === "authenticated" && !!session;
   const user = session?.user;
@@ -20,15 +23,20 @@ export const Header = () => {
     setIsClient(true);
   }, []);
 
-  // Debug: Log authentication state only on client side and when status changes
+  // Debug: Log authentication state only on significant changes
   useEffect(() => {
     if (!isClient) return;
 
-    console.log("Header - Auth State:", {
-      status,
-      isLoggedIn: isAuthenticated,
-      user: user ? user.email : "not logged in",
-    });
+    // Only log when status actually changes (not on every render)
+    if (prevStatus.current !== status) {
+      console.log("Header - Auth State Changed:", {
+        from: prevStatus.current,
+        to: status,
+        isLoggedIn: isAuthenticated,
+        user: user ? user.email : "not logged in",
+      });
+      prevStatus.current = status;
+    }
   }, [status, user, isAuthenticated, isClient]);
 
   // Always show loading state until client is ready and auth is resolved
@@ -74,6 +82,9 @@ export const Header = () => {
               ) : (
                 // Authenticated
                 <div className="flex items-center space-x-4">
+                  <Link href="/profile" className="nav-link">
+                    Profile
+                  </Link>
                   <Link href="/orders" className="nav-link">
                     My Orders
                   </Link>

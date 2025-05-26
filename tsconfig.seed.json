@@ -5,5 +5,5 @@
     "moduleResolution": "node",
     "noEmit": false
   },
-  "include": ["prisma/**/*"]
+  "include": ["prisma/**/*", "scripts/**/*"]
 }

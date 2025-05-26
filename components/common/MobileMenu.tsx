@@ -67,6 +67,10 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, user: propUser }
             </Link>
           ) : (
             <>
+              <Link href="/profile" className="nav-link px-2 py-1">
+                <i className="fas fa-user mr-2"></i>
+                Profile
+              </Link>
               <Link href="/orders" className="nav-link px-2 py-1">
                 <i className="fas fa-receipt mr-2"></i>
                 My Orders

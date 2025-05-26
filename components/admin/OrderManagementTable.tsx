@@ -119,6 +119,8 @@ export default function OrderManagementTable({ className = "" }: OrderManagement
       SHIPPED: "bg-indigo-100 text-indigo-800",
       DELIVERED: "bg-green-100 text-green-800",
       CANCELLED: "bg-red-100 text-red-800",
+      REFUND_REQUESTED: "bg-orange-100 text-orange-800",
+      REFUNDED: "bg-gray-100 text-gray-800",
     };
     return styles[status] || "bg-gray-100 text-gray-800";
   };
@@ -132,6 +134,8 @@ export default function OrderManagementTable({ className = "" }: OrderManagement
       SHIPPED: "Shipped",
       DELIVERED: "Delivered",
       CANCELLED: "Cancelled",
+      REFUND_REQUESTED: "Refund Requested",
+      REFUNDED: "Refunded",
     };
     return texts[status] || status;
   };

@@ -1,8 +1,80 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { PRODUCTS, formatPrice } from "../../constants";
+import { formatPrice } from "../../constants";
+
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  images: string[];
+  variants: any[];
+}
 
 export const NewArrivals = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/products", {
+          cache: "no-store", // Ensure fresh data
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch products");
+        }
+
+        const data = await response.json();
+        // Take first 3 products as "new arrivals"
+        setProducts(data.slice(0, 3));
+      } catch (err) {
+        console.error("Error fetching products:", err);
+        setError(err instanceof Error ? err.message : "Failed to load products");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="bg-grunge-charcoal/50 bg-noise mb-20 px-4 py-16">
+        <div className="mx-auto max-w-7xl">
+          <div className="text-center">
+            <div className="animate-pulse">
+              <div className="mx-auto mb-4 h-8 w-64 rounded bg-gray-300"></div>
+              <div className="mx-auto mb-8 h-4 w-96 rounded bg-gray-300"></div>
+              <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-96 animate-pulse rounded-lg bg-gray-300"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="bg-grunge-charcoal/50 bg-noise mb-20 px-4 py-16">
+        <div className="mx-auto max-w-7xl text-center">
+          <p className="text-red-400">Error loading products: {error}</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="bg-grunge-charcoal/50 bg-noise mb-20 px-4 py-16">
       <div className="mx-auto max-w-7xl">
@@ -21,12 +93,12 @@ export const NewArrivals = () => {
           </Link>
         </div>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-          {PRODUCTS.newArrivals.map((product) => (
+          {products.map((product) => (
             <div key={product.id} className="product-card group">
               <Link href={`/product/${product.id}`}>
                 <div className="relative mb-6 overflow-hidden rounded-lg">
                   <img
-                    src={product.image}
+                    src={product.images?.[0] || "/placeholder-image.svg"}
                     alt={product.name}
                     className="filter-vintage group-hover:filter-grunge h-[350px] w-full object-cover transition-all duration-500 group-hover:scale-110"
                   />

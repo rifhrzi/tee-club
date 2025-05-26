@@ -11,11 +11,16 @@ import LoadingButton from "@/components/LoadingButton";
 interface ApiResponse {
   error?: string;
   message?: string;
+  success?: boolean;
   user?: {
     id: string;
     email: string;
     name: string;
   };
+  details?: Array<{
+    field: string;
+    message: string;
+  }>;
 }
 
 function SignUpForm() {
@@ -67,9 +72,27 @@ function SignUpForm() {
         }),
       });
 
-      const data: ApiResponse = await response.json();
+      let data: ApiResponse;
+
+      // Handle potential JSON parsing errors
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error("Signup page: Failed to parse JSON response:", jsonError);
+
+        // Try to get the response as text for debugging
+        const responseText = await response.text();
+        console.error("Signup page: Response text:", responseText);
+
+        throw new Error("Server returned an invalid response. Please try again.");
+      }
 
       if (!response.ok) {
+        // Handle validation errors with details
+        if (data.details && Array.isArray(data.details)) {
+          const errorMessages = data.details.map((detail) => detail.message).join(", ");
+          throw new Error(errorMessages);
+        }
         throw new Error(data.error || "Failed to create account");
       }
 
