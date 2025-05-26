@@ -6,6 +6,7 @@ import { reduceProductStock } from "@/lib/services/products";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    console.log("Midtrans notification received:", JSON.stringify(body, null, 2));
 
     const core = new midtransClient.CoreApi({
       isProduction: process.env.NODE_ENV === "production",
@@ -13,32 +14,42 @@ export async function POST(request: Request) {
       clientKey: process.env.MIDTRANS_CLIENT_KEY!,
     });
 
+    console.log("Midtrans notification - Processing with Core API...");
     const notificationJson = await core.transaction.notification(body);
+    console.log("Midtrans notification - Processed notification:", JSON.stringify(notificationJson, null, 2));
 
     const orderId = notificationJson.order_id;
     const transactionStatus = notificationJson.transaction_status;
     const fraudStatus = notificationJson.fraud_status;
 
-    let orderStatus: "PENDING" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" =
-      "PENDING";
+    let orderStatus: any = "PENDING" as any;
 
     if (transactionStatus === "capture") {
       if (fraudStatus === "challenge") {
-        orderStatus = "PENDING";
+        orderStatus = "PENDING" as any;
       } else if (fraudStatus === "accept") {
-        orderStatus = "PAID";
+        orderStatus = "PAID" as any;
       }
     } else if (transactionStatus === "settlement") {
-      orderStatus = "PAID";
+      orderStatus = "PAID" as any;
     } else if (
       transactionStatus === "cancel" ||
       transactionStatus === "deny" ||
       transactionStatus === "expire"
     ) {
-      orderStatus = "CANCELLED";
+      orderStatus = "CANCELLED" as any;
     } else if (transactionStatus === "pending") {
-      orderStatus = "PENDING";
+      orderStatus = "PENDING" as any;
     }
+
+    console.log("Midtrans notification - Looking for order with:", {
+      orderId,
+      transactionId: notificationJson.transaction_id,
+      searchCriteria: {
+        paymentToken: notificationJson.transaction_id,
+        idStartsWith: orderId.replace("ORDER-", "")
+      }
+    });
 
     const order = await db.order.findFirst({
       where: {
@@ -51,6 +62,8 @@ export async function POST(request: Request) {
         items: true
       }
     });
+
+    console.log("Midtrans notification - Order found:", order ? `Yes (ID: ${order.id})` : "No");
 
     if (order) {
       // Update order status

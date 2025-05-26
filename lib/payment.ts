@@ -22,37 +22,95 @@ export async function createPayment(order: OrderInput, user: any, customBaseUrl?
     baseUrl =
       process.env.NODE_ENV === "production"
         ? "https://your-production-domain.com"
-        : "http://localhost:3000";
+        : "http://localhost:3001";
   }
 
   console.log("Payment creation - Using base URL:", baseUrl);
 
+  const grossAmount = await calculateTotal(order.items);
+
   const transactionDetails = {
     transaction_details: {
       order_id: orderId,
-      gross_amount: await calculateTotal(order.items),
+      gross_amount: grossAmount,
+    },
+    credit_card: {
+      secure: true,
+      channel: "migs",
+      bank: "bni",
+      installment: {
+        required: false,
+        terms: {
+          bni: [3, 6, 12],
+          mandiri: [3, 6, 12],
+          cimb: [3],
+          bca: [3, 6, 12],
+          offline: [6, 12]
+        }
+      },
+      whitelist_bins: [
+        "48111111",
+        "41111111"
+      ]
     },
     customer_details: {
       first_name: user.name,
+      last_name: "",
       email: user.email,
       phone: order.shippingDetails.phone,
+      billing_address: {
+        first_name: order.shippingDetails.name,
+        last_name: "",
+        email: order.shippingDetails.email,
+        phone: order.shippingDetails.phone,
+        address: order.shippingDetails.address,
+        city: order.shippingDetails.city,
+        postal_code: order.shippingDetails.postalCode,
+        country_code: "IDN"
+      },
+      shipping_address: {
+        first_name: order.shippingDetails.name,
+        last_name: "",
+        email: order.shippingDetails.email,
+        phone: order.shippingDetails.phone,
+        address: order.shippingDetails.address,
+        city: order.shippingDetails.city,
+        postal_code: order.shippingDetails.postalCode,
+        country_code: "IDN"
+      }
     },
-    shipping_address: {
-      first_name: order.shippingDetails.name,
-      phone: order.shippingDetails.phone,
-      address: order.shippingDetails.address,
-      city: order.shippingDetails.city,
-      postal_code: order.shippingDetails.postalCode,
-    },
+    enabled_payments: [
+      "credit_card",
+      "bca_va",
+      "bni_va",
+      "bri_va",
+      "echannel",
+      "permata_va",
+      "other_va",
+      "gopay",
+      "shopeepay",
+      "qris"
+    ],
     callbacks: {
       finish: `${baseUrl}/payment/success?order_id=${orderId}`,
       error: `${baseUrl}/payment/failure?order_id=${orderId}`,
       pending: `${baseUrl}/payment/pending?order_id=${orderId}`,
     },
+    expiry: {
+      start_time: new Date().toISOString().replace(/T/, ' ').replace(/\.\d{3}Z$/, ' +0700'),
+      unit: "minutes",
+      duration: 60
+    }
   };
 
   try {
+    console.log("Creating Midtrans transaction with details:", JSON.stringify(transactionDetails, null, 2));
     const transaction = await snap.createTransaction(transactionDetails);
+    console.log("Midtrans transaction created successfully:", {
+      token: transaction.token,
+      redirect_url: transaction.redirect_url,
+      orderId
+    });
     return {
       token: transaction.token,
       redirect_url: transaction.redirect_url,
@@ -60,7 +118,12 @@ export async function createPayment(order: OrderInput, user: any, customBaseUrl?
     };
   } catch (error) {
     console.error("Midtrans payment creation failed:", error);
-    throw new Error("Payment creation failed");
+    console.error("Transaction details that failed:", JSON.stringify(transactionDetails, null, 2));
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+    throw new Error(`Payment creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

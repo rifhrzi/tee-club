@@ -4,12 +4,25 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
+import { useAuth } from "@/components/AuthProvider";
+import AuthGuard from "@/components/AuthGuard";
 import { useAdminDashboard, useAdminOrders } from "@/hooks/useAdminDashboard";
 import { AdminOrder, OrderStatus } from "@/types/admin";
 
 export default function DashboardPage() {
-  const { isAuthenticated, user, isReady } = useUnifiedAuth();
+  return (
+    <AuthGuard
+      requireAuth={true}
+      redirectTo="/login?redirect=/dashboard&message=admin-required"
+      loadingMessage="Loading admin dashboard..."
+    >
+      <DashboardContent />
+    </AuthGuard>
+  );
+}
+
+function DashboardContent() {
+  const auth = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -35,48 +48,31 @@ export default function DashboardPage() {
   // Debug logging
   useEffect(() => {
     console.log("Dashboard - Auth state:", {
-      isAuthenticated,
-      isReady,
-      user,
-      userRole: user?.role,
+      isAuthenticated: auth.isAuthenticated,
+      isInitialized: auth.isInitialized,
+      user: auth.user,
+      userRole: auth.user?.role,
     });
-  }, [isAuthenticated, isReady, user]);
+  }, [auth.isAuthenticated, auth.isInitialized, auth.user]);
 
+  // Check admin role (AuthGuard handles basic authentication)
   useEffect(() => {
-    if (!isReady) {
+    if (!auth.isInitialized) {
       console.log("Dashboard - Auth not ready yet, waiting...");
       return;
     }
 
-    if (!isAuthenticated) {
-      console.log("Dashboard - User not authenticated, redirecting to login");
+    if (auth.user?.role !== "ADMIN") {
+      console.log("Dashboard - User role is not ADMIN:", auth.user?.role, "redirecting to login");
       router.push("/login?redirect=/dashboard&message=admin-required");
       return;
     }
 
-    if (user?.role !== "ADMIN") {
-      console.log("Dashboard - User role is not ADMIN:", user?.role, "redirecting to login");
-      router.push("/login?redirect=/dashboard&message=admin-required");
-      return;
-    }
+    console.log("Dashboard - Admin access granted for user:", auth.user.email);
+  }, [auth.isInitialized, auth.user, router]);
 
-    console.log("Dashboard - Admin access granted for user:", user.email);
-  }, [isAuthenticated, user, router, isReady]);
-
-  // Show loading state while auth is being determined
-  if (!isReady) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading authentication...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show access denied message for non-admin users
-  if (!isAuthenticated || user?.role !== "ADMIN") {
+  // Show access denied message for non-admin users (AuthGuard handles basic auth)
+  if (!auth.isInitialized || (auth.user && auth.user.role !== "ADMIN")) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-100">
         <div className="mx-auto max-w-md p-6 text-center">
@@ -84,8 +80,8 @@ export default function DashboardPage() {
             <h2 className="mb-2 text-lg font-bold">Access Denied</h2>
             <p className="mb-2">You need administrator privileges to access this page.</p>
             <p className="text-sm">
-              Current user: {user?.email || "Not logged in"}
-              {user?.role && ` (Role: ${user.role})`}
+              Current user: {auth.user?.email || "Not logged in"}
+              {auth.user?.role && ` (Role: ${auth.user.role})`}
             </p>
           </div>
           <button

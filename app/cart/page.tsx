@@ -11,7 +11,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useLoading } from "@/contexts/LoadingContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import AuthDebugger from "@/components/AuthDebugger";
+
 import { useAuthSync } from "@/hooks/useAuthSync";
 
 const Layout = dynamicImport(() => import("@/components/Layout"), { ssr: false });
@@ -212,7 +212,7 @@ export default function CartPage() {
           </div>
         )}
       </div>
-      <AuthDebugger />
+
     </Layout>
   );
 }

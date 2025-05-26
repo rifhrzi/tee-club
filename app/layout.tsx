@@ -28,9 +28,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={inter.className}>
         <NextAuthProvider>
-          <LoadingProvider>
-            {children}
-          </LoadingProvider>
+          <AuthProvider>
+            <LoadingProvider>
+              {children}
+            </LoadingProvider>
+          </AuthProvider>
         </NextAuthProvider>
       </body>
     </html>

@@ -12,7 +12,7 @@ import { redirectToSignup } from "@/utils/authRedirect";
 import { useLoading } from "@/contexts/LoadingContext";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import LoadingButton from "@/components/LoadingButton";
-import AuthDebugger from "@/components/AuthDebugger";
+
 
 const Layout = dynamic(() => import("@/components/Layout"), { ssr: false });
 
@@ -228,7 +228,7 @@ export default function ProductClient({ product }: { product: Product | null }) 
   return (
     <Layout>
       {showToast && <Toast message={toastMessage} type={toastMessage.includes("Failed") ? "error" : "success"} />}
-      <AuthDebugger />
+
 
       <div className="rounded-lg bg-white shadow-lg">
         <div className="grid grid-cols-1 gap-8 p-8 md:grid-cols-2">

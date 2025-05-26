@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { AdminOrdersResponse, AdminFilters } from "@/types/admin";
+import { OrderStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -193,11 +194,11 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Validate status
-    const validStatuses = ['PENDING', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
-    if (!validStatuses.includes(status)) {
+    // Validate status using OrderStatus enum
+    const validStatuses = Object.values(OrderStatus);
+    if (!validStatuses.includes(status as OrderStatus)) {
       return NextResponse.json(
-        { error: "Invalid status" },
+        { error: "Invalid status", validStatuses },
         { status: 400 }
       );
     }
@@ -208,7 +209,7 @@ export async function PATCH(request: NextRequest) {
         id: orderId,
       },
       data: {
-        status,
+        status: status as OrderStatus,
         updatedAt: new Date(),
       },
       include: {

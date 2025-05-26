@@ -8,6 +8,7 @@ import { CustomerInfo } from "@/components/dashboard/CustomerInfo";
 import { ShippingInfo } from "@/components/dashboard/ShippingInfo";
 import { OrderItems } from "@/components/dashboard/OrderItems";
 import { OrderSummary } from "@/components/dashboard/OrderSummary";
+import AuthGuard from "@/components/AuthGuard";
 
 // Data dummy untuk contoh
 const dummyOrder: Order = {
@@ -63,6 +64,18 @@ const dummyOrder: Order = {
 };
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
+  return (
+    <AuthGuard
+      requireAuth={true}
+      redirectTo="/login?redirect=/dashboard"
+      loadingMessage="Loading order details..."
+    >
+      <OrderDetailContent params={params} />
+    </AuthGuard>
+  );
+}
+
+function OrderDetailContent({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [orderStatus, setOrderStatus] = useState(dummyOrder.status);
 

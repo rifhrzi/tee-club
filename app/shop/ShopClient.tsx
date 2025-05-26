@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { formatPrice } from "@/constants";
 import QuickAddToCart from "@/components/QuickAddToCart";
-import AuthDebugger from "@/components/AuthDebugger";
+
 import {
   MagnifyingGlassIcon,
   Squares2X2Icon,
@@ -215,7 +215,7 @@ export default function ShopClient({ products }: { products: Product[] }) {
           )}
         </div>
       </div>
-      <AuthDebugger />
+
     </Layout>
   );
 }

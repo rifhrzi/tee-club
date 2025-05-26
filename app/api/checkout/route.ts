@@ -80,17 +80,19 @@ export async function POST(request: Request) {
     const validatedData = orderSchema.parse(body);
 
     // Get the origin from the request headers
-    const origin = request.headers.get('origin') || 'http://localhost:3000';
+    const origin = request.headers.get('origin') || 'http://localhost:3001';
     console.log('Checkout API - Request origin:', origin);
 
-    // Create payment with the origin as the base URL
+    // Create payment with the origin as the base URL (using original payment configuration)
+    console.log("Checkout API - Attempting to create payment...");
     const payment = await createPayment(validatedData, user, origin);
+    console.log("Checkout API - Payment created successfully:", payment);
 
-    // Create order in database
+    // Create order in database with PENDING status (will be updated to PAID after payment confirmation)
     const order = await db.order.create({
       data: {
         userId: user.id,
-        status: 'PENDING',
+        status: "PENDING" as any,
         items: {
           create: await Promise.all(
             validatedData.items.map(async (item) => {

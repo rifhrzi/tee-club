@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import useCartStore from "@/store/cartStore";
 import { useSession } from "next-auth/react";
-import { useUnifiedAuth, useRequireAuth } from "@/hooks/useUnifiedAuth";
 import Layout from "@/components/Layout";
+import AuthGuard from "@/components/AuthGuard";
+import { useAuth } from "@/components/AuthProvider";
 
 // Force this page to be client-side only
 export const dynamic = "force-dynamic";
@@ -27,10 +27,10 @@ function CheckoutContent() {
   const router = useRouter();
   const cart = useCartStore((state) => state.cart);
   const { data: session, status } = useSession();
-  const auth = useUnifiedAuth();
-  const requireAuth = useRequireAuth("/login");
+  const auth = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isClient, setIsClient] = useState(false);
 
   // Form data state for restoration after login
   const [formData, setFormData] = useState({
@@ -67,32 +67,19 @@ function CheckoutContent() {
     }
   }, []);
 
-  // Handle authentication redirects using unified auth
+  // Set client-side flag
   useEffect(() => {
-    if (!auth.isReady) return;
+    setIsClient(true);
+  }, []);
 
-    console.log("Checkout page - Unified auth state:", {
+  // Simple auth state logging (AuthGuard handles the heavy lifting)
+  useEffect(() => {
+    console.log("Checkout page - Auth state:", {
       isAuthenticated: auth.isAuthenticated,
       isLoading: auth.isLoading,
-      isReady: auth.isReady,
-      userEmail: auth.userEmail || "not logged in",
+      userEmail: auth.user?.email || "not logged in",
     });
-
-    if (requireAuth.shouldRedirect && requireAuth.redirectUrl) {
-      console.log("Checkout requires authentication, redirecting to:", requireAuth.redirectUrl);
-      router.push(requireAuth.redirectUrl);
-    } else if (auth.isAuthenticated) {
-      console.log("User is authenticated:", auth.userEmail);
-    }
-  }, [
-    auth.isReady,
-    auth.isAuthenticated,
-    auth.isLoading,
-    auth.userEmail,
-    requireAuth.shouldRedirect,
-    requireAuth.redirectUrl,
-    router,
-  ]);
+  }, [auth.isAuthenticated, auth.isLoading, auth.user?.email]);
 
   const handleCheckout = async (event: React.FormEvent<HTMLFormElement>) => {
     // Prevent the default form submission which would cause a page refresh
@@ -115,42 +102,14 @@ function CheckoutContent() {
       }
 
       if (!auth.isAuthenticated || !auth.user) {
-        // Log detailed authentication state for debugging
-        console.log("Checkout - Authentication check before proceeding:", {
-          isAuthenticated: auth.isAuthenticated,
-          isLoading: auth.isLoading,
-          isReady: auth.isReady,
-          user: !!auth.user,
-        });
-
-        console.log("Checkout requires authentication, redirecting to login");
-
-        // Store checkout data in localStorage to restore after login
-        if (typeof window !== "undefined") {
-          const formElement = event.currentTarget as HTMLFormElement;
-          const formData = new FormData(formElement);
-
-          localStorage.setItem(
-            "checkout_form_data",
-            JSON.stringify({
-              name: formData.get("name") || "",
-              email: formData.get("email") || "",
-              phone: formData.get("phone") || "",
-              address: formData.get("address") || "",
-              city: formData.get("city") || "",
-              postalCode: formData.get("postalCode") || "",
-              timestamp: new Date().toISOString(),
-            })
-          );
-          console.log("Stored checkout form data for restoration after login");
-        }
-
+        // This shouldn't happen since AuthGuard protects this component
+        console.log("Checkout - Unexpected: not authenticated despite AuthGuard");
         router.push("/login?redirect=/checkout");
         return;
       }
 
       // Log authentication status
-      console.log("Proceeding with authenticated checkout for:", auth.userEmail);
+      console.log("Proceeding with authenticated checkout for:", auth.user?.email);
 
       const formData = new FormData(event.currentTarget);
       const transformedItems = cart.map((item) => {
@@ -184,8 +143,8 @@ function CheckoutContent() {
       console.log("Using NextAuth session for authorization");
 
       // Store the user ID in a custom header for debugging
-      if (auth.userId) {
-        headers["x-nextauth-user-id-debug"] = auth.userId;
+      if (auth.user?.id) {
+        headers["x-nextauth-user-id-debug"] = auth.user.id;
       }
 
       // Log all cookies for debugging
@@ -328,20 +287,11 @@ function CheckoutContent() {
           </div>
         )}
 
-        {/* Show loading state when authentication is being checked */}
-        {auth.isLoading || !auth.isReady ? (
+        {/* AuthGuard handles authentication, so we can directly show the form */}
+        {!isClient ? (
           <div className="py-8 text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
-            <p className="mt-2 text-gray-600">Verifying authentication...</p>
-          </div>
-        ) : !auth.isAuthenticated ? (
-          <div className="mb-4 rounded border border-yellow-400 bg-yellow-100 px-4 py-3 text-yellow-700">
-            <p>You need to be logged in to checkout.</p>
-            <p className="mt-2">
-              <Link href="/login?redirect=/checkout" className="text-blue-600 hover:underline">
-                Click here to log in
-              </Link>
-            </p>
+            <p className="mt-2 text-gray-600">Loading checkout...</p>
           </div>
         ) : (
           <form onSubmit={handleCheckout} className="space-y-6 rounded-lg bg-white p-6 shadow-lg">
